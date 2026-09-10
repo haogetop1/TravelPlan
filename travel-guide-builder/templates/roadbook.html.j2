@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ meta.title }} · {{ meta.dateRange }}</title>
+<style>
+:root{
+  --gold:#b08968; --gold-d:#8a6a4f; --gold-l:#d8c3ae; --gold-bg:#f3ece4;
+  --cream:#faf7f2; --card:#ffffff; --ink:#2f2a26; --ink-2:#4a423b;
+  --muted:#857a70; --line:#e8e0d5; --red:#b23b3b; --green:#5f7a52;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--cream); color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",Arial,sans-serif;
+  font-size:15px; line-height:1.78; letter-spacing:.1px;
+}
+.wrap{max-width:760px;margin:0 auto;background:var(--cream);overflow:hidden}
+img{display:block;max-width:100%}
+
+/* ---------- 封面 ---------- */
+.cover{position:relative;background:linear-gradient(160deg,#3a2f26 0%,#241d17 55%,#1b1512 100%);overflow:hidden;min-height:430px}
+.cover-img{width:100%;height:470px;object-fit:cover;opacity:.9}
+.cover-mask{position:absolute;inset:0;background:
+  linear-gradient(180deg,rgba(24,18,14,.14) 0%,rgba(24,18,14,.30) 34%,rgba(24,18,14,.66) 62%,rgba(24,18,14,.93) 100%)}
+.cover-inner{position:absolute;left:0;right:0;bottom:0;padding:26px 22px 24px;color:#fff}
+.cover-kicker{
+  display:inline-block;font-size:11.5px;letter-spacing:2.6px;padding:5px 12px;border-radius:2px;
+  background:rgba(176,137,104,.92);margin-bottom:14px;font-weight:600}
+.cover h1{font-size:30px;line-height:1.32;font-weight:800;letter-spacing:.5px}
+.cover h1 .hl{color:#e8c9a0}
+.cover-sub{margin-top:10px;font-size:14px;color:rgba(255,255,255,.86);letter-spacing:.6px}
+.cover-line{width:52px;height:3px;background:var(--gold);margin:15px 0 13px;border-radius:2px}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{
+  font-size:12px;padding:5px 10px;border-radius:14px;
+  background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.22);
+  color:rgba(255,255,255,.94);backdrop-filter:blur(4px)}
+
+/* ---------- 章标题 ---------- */
+.chapter{margin:0;padding:26px 18px 6px}
+.chapter-head{display:flex;align-items:baseline;gap:10px;border-bottom:2px solid var(--gold);padding-bottom:9px}
+.chapter-num{font-size:12px;font-weight:700;color:var(--gold);letter-spacing:2px}
+.chapter-t{font-size:20px;font-weight:800;letter-spacing:.4px}
+.chapter-en{font-size:11px;color:var(--muted);letter-spacing:1.4px;margin-left:auto;text-transform:uppercase}
+.chapter-note{font-size:12.5px;color:var(--muted);margin-top:9px}
+
+/* ---------- 通用卡 ---------- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;margin:14px 18px;overflow:hidden}
+.card-h{
+  padding:12px 15px;background:var(--gold-bg);border-bottom:1px solid var(--line);
+  font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px}
+.card-h .dot{width:6px;height:6px;border-radius:50%;background:var(--gold)}
+.card-b{padding:14px 15px}
+.pad{padding:0 18px}
+
+/* ---------- 总览时间轴 ---------- */
+.tl{position:relative;padding:6px 18px 2px}
+.tl-item{position:relative;padding:0 0 15px 26px;border-left:2px solid var(--gold-l)}
+.tl-item:last-child{border-left-color:transparent}
+.tl-item::before{
+  content:'';position:absolute;left:-7px;top:5px;width:12px;height:12px;border-radius:50%;
+  background:var(--gold);border:2.5px solid var(--cream)}
+.tl-day{font-size:12px;font-weight:700;color:var(--gold-d);letter-spacing:1px}
+.tl-main{font-size:15px;font-weight:700;margin:2px 0 4px}
+.tl-chain{font-size:13px;color:var(--ink-2);line-height:1.7}
+.tl-chain .arw{color:var(--gold);font-weight:700;padding:0 3px}
+.tl-sub{font-size:12px;color:var(--muted);margin-top:4px}
+
+/* ---------- 图片 ---------- */
+figure{margin:0}
+.fig-map{border-radius:10px;overflow:hidden;border:1px solid var(--line);background:#eef0ec}
+.fig-map img{width:100%}
+.fig-cap{font-size:11.5px;color:var(--muted);padding:7px 11px;background:#fcfaf7;border-top:1px solid var(--line)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}
+.ph{position:relative;border-radius:8px;overflow:hidden;background:#eee;aspect-ratio:3/4}
+.ph.wide{aspect-ratio:4/3}
+.ph img{width:100%;height:100%;object-fit:cover}
+.ph .credit{
+  position:absolute;left:0;right:0;bottom:0;font-size:9.5px;color:rgba(255,255,255,.92);
+  background:linear-gradient(transparent,rgba(0,0,0,.62));padding:12px 6px 4px;line-height:1.3}
+
+/* ---------- 景点块 ---------- */
+.spot{margin:20px 18px 0;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.spot-h{padding:13px 15px 11px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#fff, #fdfbf8)}
+.spot-tag{font-size:11px;color:var(--gold-d);letter-spacing:1.4px;font-weight:700}
+.spot-name{font-size:18px;font-weight:800;color:var(--red);letter-spacing:.3px;margin-top:2px}
+.spot-body{padding:14px 15px}
+
+/* ---------- 行元素 ---------- */
+.row{display:flex;gap:10px;padding:9px 0;border-bottom:1px dashed var(--line);font-size:14px}
+.row:last-child{border-bottom:none}
+.row .k{flex:0 0 74px;color:var(--gold-d);font-weight:700;font-size:13px}
+.row .v{flex:1;color:var(--ink-2)}
+.seg{font-size:14.5px;color:var(--ink-2);white-space:pre-wrap;margin:2px 0 12px}
+.seg b{color:var(--ink)}
+.bullets{list-style:none}
+.bullets li{position:relative;padding-left:17px;margin:5px 0;font-size:13.5px;color:var(--ink-2);line-height:1.7}
+.bullets li::before{content:'';position:absolute;left:3px;top:9px;width:5px;height:5px;border-radius:50%;background:var(--gold-l)}
+.bullets.warn li::before{background:#e0a3a3}
+.bullets.tip li::before{background:#a8c39a}
+.subhead{font-size:13px;font-weight:700;color:var(--gold-d);margin:13px 0 6px;letter-spacing:.4px}
+.subhead:first-child{margin-top:2px}
+.chain{font-size:13.5px;color:var(--ink-2);line-height:2}
+.chain .arw{color:var(--gold);font-weight:700;padding:0 2px}
+.pill{display:inline-block;font-size:11.5px;padding:2px 8px;border-radius:10px;background:var(--gold-bg);color:var(--gold-d);margin:0 4px 4px 0}
+
+/* ---------- 预算 ---------- */
+.bud-row{padding:13px 15px;border-bottom:1px solid var(--line)}
+.bud-row:last-child{border-bottom:none}
+.bud-l1{display:flex;align-items:center;gap:8px}
+.bud-cat{font-size:15px;font-weight:700;color:var(--ink);flex:1}
+.bud-rate{font-size:11.5px;font-weight:700;color:#b23b3b;background:#fbeceb;padding:2px 8px;border-radius:9px}
+.bud-rate.down{color:#5f7a52;background:#eef3ea}
+.bud-l2{display:flex;gap:10px;margin:8px 0 6px}
+.bp{flex:1;background:#faf8f4;border:1px solid var(--line);border-radius:8px;padding:7px 10px}
+.bp i{display:block;font-style:normal;font-size:11px;color:var(--muted)}
+.bp b{font-size:17px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums}
+.bp.hot{background:#fdf6ec;border-color:#eddcc5}
+.bp.hot b{color:#b23b3b}
+.bud-l3{font-size:12px;color:var(--muted);line-height:1.6}
+.bud-src{margin-top:7px}
+.bud-src summary{font-size:11.5px;color:var(--gold-d);cursor:pointer;list-style:none}
+.bud-src summary::-webkit-details-marker{display:none}
+.bud-src summary::before{content:'▸ ';font-size:10px}
+.bud-src[open] summary::before{content:'▾ '}
+.bud-src div{font-size:11.5px;color:var(--muted);line-height:1.7;margin-top:6px;padding:9px 10px;background:#faf8f4;border-radius:7px}
+table.tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+table.tbl th{background:var(--gold-bg);color:var(--gold-d);font-weight:700;padding:8px 7px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+table.tbl td{padding:8px 7px;border-bottom:1px solid #f1ebe3;color:var(--ink-2);vertical-align:top}
+table.tbl tr:last-child td{border-bottom:none}
+table.tbl td.num{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;color:var(--ink)}
+.bud-hero{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 18px 4px}
+.bud-box{border-radius:12px;padding:14px 13px;background:var(--card);border:1px solid var(--line)}
+.bud-box.gold{background:linear-gradient(150deg,#b08968,#96714f);border-color:#96714f;color:#fff}
+.bud-box .lab{font-size:11.5px;letter-spacing:.8px;opacity:.92}
+.bud-box .val{font-size:25px;font-weight:800;letter-spacing:-.5px;margin-top:5px;font-variant-numeric:tabular-nums}
+.bud-box .val small{font-size:13px;font-weight:600;margin-left:2px}
+.bud-box .sub{font-size:11.5px;margin-top:5px;opacity:.85}
+
+/* ---------- 提示条 ---------- */
+.note{
+  margin:14px 18px;padding:12px 14px;border-radius:10px;font-size:13px;line-height:1.75;
+  background:#fdf6ec;border-left:3px solid var(--gold);color:#6b5a48}
+.note b{color:var(--gold-d)}
+.foot{padding:24px 18px 34px;text-align:center;color:var(--muted);font-size:11.5px;line-height:1.9}
+.foot .line{width:40px;height:2px;background:var(--gold-l);margin:0 auto 12px}
+.todo{
+  margin:18px;padding:16px;border:1.5px dashed var(--gold-l);border-radius:12px;background:#fdfbf7;
+  text-align:center;font-size:13px;color:var(--gold-d);line-height:1.9}
+
+/* ---------- 编辑模式 ---------- */
+#editbar{position:fixed;right:14px;bottom:16px;z-index:99;display:flex;flex-direction:column;gap:8px}
+#editbar button{
+  border:none;cursor:pointer;font-size:12.5px;font-weight:700;color:#fff;
+  background:var(--gold);padding:10px 14px;border-radius:22px;box-shadow:0 4px 14px rgba(138,106,79,.36)}
+#editbar button.off{background:#8a8378}
+[contenteditable="true"]{outline:1.5px dashed var(--gold);outline-offset:3px;border-radius:3px;background:#fffdf7}
+@media print{
+  #editbar{display:none}
+  body{background:#fff;font-size:13px}
+  .wrap{max-width:none}
+  .card,.bud-row,figure,.ph,.bud-box,.note{break-inside:avoid;page-break-inside:avoid}
+  .chapter{break-after:avoid;page-break-after:avoid}
+  .cover{min-height:auto;break-inside:avoid}
+  .cover-img{height:320px}
+  .spot{break-inside:auto}
+  .seg,.bullets li{orphans:3;widows:3}
+  a{color:inherit;text-decoration:none}
+}
+@media (max-width:400px){
+  .cover-img{height:370px}
+  .cover h1{font-size:26px}
+  .grid3{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+<div class="wrap" id="root">
+
+<!-- ============ 封面 ============ -->
+<div class="cover">
+  {% if meta.hero %}<img class="cover-img" src="{{ meta.hero }}" alt="封面">{% endif %}
+  <div class="cover-mask"></div>
+  <div class="cover-inner">
+    <span class="cover-kicker">SELF-DRIVE ROADBOOK</span>
+    <h1>贵州 <span class="hl">{{ meta.days }}</span> 天 <span class="hl">{{ meta.nights }}</span> 晚<br>{{ meta.mode }}旅游攻略</h1>
+    <div class="cover-line"></div>
+    <div class="cover-sub">{{ meta.dateRange }} · {{ meta.route }} · {{ meta.miles }}</div>
+    <div class="chips" style="margin-top:13px">
+      <span class="chip">✈ 深圳 ⇄ 贵阳</span>
+      <span class="chip">🚗 落地自驾</span>
+      <span class="chip">👥 {{ meta.people }} 人</span>
+      <span class="chip">🏨 {{ meta.level }}</span>
+      <span class="chip">⏰ {{ meta.pace }}</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 总篇章 ============ -->
+<div class="chapter">
+  <div class="chapter-head">
+    <span class="chapter-num">总篇章</span>
+    <span class="chapter-t">行程总览</span>
+    <span class="chapter-en">Overview</span>
+  </div>
+  <div class="chapter-note">先看全局：路线骨架、每日节奏与钱花在哪。</div>
+</div>
+
+<div class="bud-hero">
+  <div class="bud-box gold">
+    <div class="lab">人均总预算 · 平日参考价</div>
+    <div class="val">{{ budget.per_weekday }}<small>元</small></div>
+    <div class="sub">2 人合计 {{ budget.total_weekday }} 元</div>
+  </div>
+  <div class="bud-box">
+    <div class="lab">人均总预算 · 国庆实际价</div>
+    <div class="val" style="color:#b23b3b">{{ budget.per_holiday }}<small>元</small></div>
+    <div class="sub">2 人合计 {{ budget.total_holiday }} 元</div>
+  </div>
+</div>
+{% if budget.delta_note %}
+<div class="note">{{ budget.delta_note|safe }}</div>
+{% endif %}
+
+<div class="chapter" style="padding-top:22px">
+  <div class="chapter-head" style="border-bottom-width:1px">
+    <span class="chapter-num">路线</span>
+    <span class="chapter-t" style="font-size:17px">7 天路线骨架</span>
+  </div>
+</div>
+
+<div class="tl">
+  {% for d in overview_days %}
+  <div class="tl-item">
+    <div class="tl-day">DAY{{ d.day }} · {{ d.date }} {{ d.weekday }}</div>
+    <div class="tl-main">{{ d.from_city }} <span style="color:var(--gold)">→</span> {{ d.to_display }}</div>
+    <div class="tl-chain">{{ d.chain_html|safe }}</div>
+    {% if d.stay_note %}<div class="tl-sub">🏨 {{ d.stay_note }}</div>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+<div class="chapter" style="padding-top:20px">
+  <div class="chapter-head" style="border-bottom-width:1px">
+    <span class="chapter-num">地图</span>
+    <span class="chapter-t" style="font-size:17px">总路线地图</span>
+  </div>
+</div>
+
+<figure class="fig-map" style="margin:14px 18px">
+  <img src="assets/maps/zongluxian.png" alt="贵州自驾总路线地图">
+  <figcaption class="fig-cap">高德地图 · 贵阳 → 黄果树 → 荔波 → 西江 → 贵阳，全程约 {{ meta.miles }}　|　地图审图号 GS(2025)5996 号</figcaption>
+</figure>
+
+<div class="chapter" style="padding-top:20px">
+  <div class="chapter-head" style="border-bottom-width:1px">
+    <span class="chapter-num">预算</span>
+    <span class="chapter-t" style="font-size:17px">人均费用拆解</span>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-h"><span class="dot"></span>费用明细（2 人同行 · 已按人均摊算）</div>
+  <div class="card-b" style="padding:0">
+    {% for r in budget.rows %}
+    <div class="bud-row">
+      <div class="bud-l1">
+        <span class="bud-cat">{{ r[0] }}</span>
+        {% if r[4] %}<span class="bud-rate {{ 'down' if '0.' in r[4] or r[4].startswith('0') else '' }}">国庆 {{ r[4] }}</span>{% endif %}
+      </div>
+      <div class="bud-l2">
+        <span class="bp"><i>平日参考价 / 人</i><b>{{ r[2] }}</b></span>
+        <span class="bp hot"><i>国庆实际价 / 人</i><b>{{ r[3] }}</b></span>
+      </div>
+      <div class="bud-l3">{{ r[1] }}</div>
+      {% if r[5] %}
+      <details class="bud-src"><summary>数据来源与说明</summary><div>{{ r[5] }}</div></details>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% if budget.warning %}
+<div class="note"><b>价格口径与不确定性：</b>{{ budget.warning }}</div>
+{% endif %}
+
+<div class="chapter" style="padding-top:20px">
+  <div class="chapter-head" style="border-bottom-width:1px">
+    <span class="chapter-num">须知</span>
+    <span class="chapter-t" style="font-size:17px">出发前必看</span>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-b">
+    <div class="subhead">🎫 门票与预约</div>
+    <ul class="bullets tip">
+      {% for x in essentials.tickets %}<li>{{ x }}</li>{% endfor %}
+    </ul>
+    <div class="subhead">🚗 自驾与路况</div>
+    <ul class="bullets">
+      {% for x in essentials.driving %}<li>{{ x }}</li>{% endfor %}
+    </ul>
+    <div class="subhead">🏨 住宿与订房</div>
+    <ul class="bullets">
+      {% for x in essentials.hotel %}<li>{{ x }}</li>{% endfor %}
+    </ul>
+  </div>
+</div>
+
+<!-- ============ 每日行程 ============ -->
+{% for d in days %}
+<div class="chapter" style="padding-top:26px">
+  <div class="chapter-head">
+    <span class="chapter-num">DAY {{ d.day }}</span>
+    <span class="chapter-t">{{ d.date }} {{ d.weekday }}</span>
+    <span class="chapter-en">{{ d.from_city }} → {{ d.to_display }}</span>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-b" style="padding:13px 15px">
+    <div class="row"><div class="k">大交通</div><div class="v">{{ d.transport_html|safe }}</div></div>
+    <div class="row"><div class="k">简要行程</div><div class="v"><div class="chain">{{ d.chain_html|safe }}</div></div></div>
+    <div class="row"><div class="k">住宿城市</div><div class="v">{{ d.stay_note or d.city_display }}　<span style="color:var(--muted);font-size:12px">（最终住宿后续再定）</span></div></div>
+  </div>
+</div>
+
+{% if d.city_map %}
+<figure class="fig-map" style="margin:14px 18px">
+  <img src="assets/maps/{{ d.city_map }}.png" alt="{{ d.city_display }}景点地图">
+  <figcaption class="fig-cap">{{ d.city_display }} 景点分布图 · 高德地图 | 地图审图号 GS(2025)5996 号</figcaption>
+</figure>
+{% endif %}
+
+{% if d.food %}
+<div class="card">
+  <div class="card-h"><span class="dot"></span>🍜 当日餐饮（优先本地特色）</div>
+  <div class="card-b">
+    <ul class="bullets">{% for l in d.food %}<li>{{ l }}</li>{% endfor %}</ul>
+  </div>
+</div>
+{% endif %}
+
+{% if d.hotel %}
+<div class="card">
+  <div class="card-h"><span class="dot"></span>🏨 当日住宿（优先经济型）</div>
+  <div class="card-b">
+    <ul class="bullets">{% for l in d.hotel %}<li>{{ l }}</li>{% endfor %}</ul>
+    <div style="margin-top:9px;font-size:12px;color:var(--muted)">⚠️ 最终住宿后续再来确定</div>
+  </div>
+</div>
+{% endif %}
+
+{% for s in d.sections %}
+<div class="spot">
+  <div class="spot-h">
+    <div class="spot-tag">
+      {% if s.kind == 'airport' %}✈ 交通枢纽{% elif s.kind == 'city' %}🏙 城市{% else %}📍 大景点 {{ s.ord }}{% endif %}
+    </div>
+    <div class="spot-name">{{ s.short }}</div>
+  </div>
+  <div class="spot-body">
+
+    {% if s.map %}
+    <figure class="fig-map" style="margin-bottom:12px">
+      <img src="assets/maps/{{ s.map }}.png" alt="{{ s.short }}地图">
+      <figcaption class="fig-cap">{{ s.short }} 位置与周边 · 高德地图 | 地图审图号 GS(2025)5996 号</figcaption>
+    </figure>
+    {% endif %}
+
+    <div class="subhead">📖 详细行程</div>
+    <div class="seg">{{ s.detail_html|safe }}</div>
+
+    {% if s.photos %}
+    <div class="subhead">📷 实拍参考</div>
+    <div class="grid{{ s.photo_cols }}">
+      {% for p in s.photos %}
+      <figure class="ph {{ 'wide' if s.photo_cols == 2 and loop.index == 1 }}">
+        <img src="{{ p.src }}" alt="{{ s.short }}" loading="lazy">
+        <figcaption class="credit">{{ p.credit }}</figcaption>
+      </figure>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if s.shots %}
+    <div class="subhead">📸 机位</div>
+    {% for blk in s.shots %}
+      {% if blk.name %}<div style="font-size:12.5px;font-weight:700;color:var(--gold-d);margin:9px 0 3px">{{ blk.name }}</div>{% endif %}
+      <ul class="bullets">{% for l in blk.lines %}<li>{{ l }}</li>{% endfor %}</ul>
+    {% endfor %}
+    {% endif %}
+
+    {% if s.tips %}
+    <div class="subhead">🧥 备注 · 穿衣与避坑</div>
+    <ul class="bullets warn">{% for l in s.tips %}<li>{{ l }}</li>{% endfor %}</ul>
+    {% endif %}
+
+    {% if s.notice %}
+    <div class="subhead">⚠️ 注意事项</div>
+    <ul class="bullets">{% for l in s.notice %}<li>{{ l }}</li>{% endfor %}</ul>
+    {% endif %}
+  </div>
+</div>
+{% endfor %}
+
+{% if d.day_shots %}
+<div class="card">
+  <div class="card-h"><span class="dot"></span>当日其它机位</div>
+  <div class="card-b">
+    {% for blk in d.day_shots %}
+      {% if blk.name %}<div class="subhead">{{ blk.name }}</div>{% endif %}
+      <ul class="bullets">{% for l in blk.lines %}<li>{{ l }}</li>{% endfor %}</ul>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if d.day_tips %}
+<div class="card">
+  <div class="card-h"><span class="dot"></span>当日备注</div>
+  <div class="card-b">
+    {% for blk in d.day_tips %}
+      {% if blk.name %}<div class="subhead">{{ blk.name }}</div>{% endif %}
+      <ul class="bullets warn">{% for l in blk.lines %}<li>{{ l }}</li>{% endfor %}</ul>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if d.day_notice %}
+<div class="card">
+  <div class="card-h"><span class="dot"></span>当日注意事项</div>
+  <div class="card-b">
+    {% for blk in d.day_notice %}
+      {% if blk.name %}<div class="subhead">{{ blk.name }}</div>{% endif %}
+      <ul class="bullets">{% for l in blk.lines %}<li>{{ l }}</li>{% endfor %}</ul>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% endfor %}
+
+{% if stage < 7 %}
+<div class="todo">
+  ⏳ <b>本阶段仅交付「封面 + 总篇章 + DAY1」</b><br>
+  确认排版与内容后，将继续生成 DAY2 – DAY7 的完整图文路书（含黄果树、荔波小七孔、西江千户苗寨等全部大景点地图与实拍）。
+</div>
+{% endif %}
+
+<div class="foot">
+  <div class="line"></div>
+  贵州 {{ meta.days }}天{{ meta.nights }}晚 {{ meta.mode }}路书 · {{ meta.dateRange }}<br>
+  实拍图源自小红书公开笔记，已标注作者与帖子 ID；地图源自高德地图开放服务<br>
+  路书仅供同行伙伴内部参考 · 价格为抓取时点报价，下单前请以官方页面为准
+</div>
+
+</div>
+
+<div id="editbar">
+  <button id="btnEdit" class="off">✎ 编辑模式</button>
+  <button id="btnExport" style="display:none">⇩ 导出修改</button>
+</div>
+
+<script>
+// ---------- 可视化编辑接口 ----------
+(function(){
+  var on = false;
+  var btn = document.getElementById('btnEdit');
+  var btnExp = document.getElementById('btnExport');
+
+  function targets(){ return document.querySelectorAll('[data-edit]'); }
+
+  btn.addEventListener('click', function(){
+    on = !on;
+    targets().forEach(function(el){ el.contentEditable = on ? 'true' : 'false'; });
+    btn.textContent = on ? '✔ 完成编辑' : '✎ 编辑模式';
+    btn.className = on ? '' : 'off';
+    btnExp.style.display = on ? 'block' : 'none';
+  });
+
+  // 给可编辑块自动打标记（按 DOM 顺序）
+  document.querySelectorAll('.seg,.bullets li,.chain,.spot-name,.row .v,.tl-main,.tl-chain,.card-h').forEach(function(el,i){
+    if (!el.hasAttribute('data-edit')) el.setAttribute('data-edit', 'e' + i);
+  });
+
+  btnExp.addEventListener('click', function(){
+    var out = {};
+    targets().forEach(function(el){
+      out[el.getAttribute('data-edit')] = el.innerText.trim();
+    });
+    var blob = new Blob([JSON.stringify(out, null, 1)], {type:'application/json'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'content_overrides.json';
+    a.click();
+  });
+})();
+</script>
+</body>
+</html>
