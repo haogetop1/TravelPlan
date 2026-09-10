@@ -92,10 +92,27 @@ python scripts/build_guide_xlsx.py content.json output.xlsx
 - 乱码扫描：对已知高频错字做子串匹配
 - 数字自洽：分项加总 == 合计
 
+## 第二阶段：图文路书（HTML / PPT / PDF）
+
+攻略表做完了，用户常常接着要「图文并茂的路书」。**完整流程、硬约束、踩坑表见
+`references/roadbook.md`**，这里只列要点：
+
+- **数据流单向**：`攻略.xlsx → content.json → HTML / PPT / PDF`。改内容改前两级，模板不动。
+- **共用一套脚本**：`roadbook_extract_content.py` → `roadbook_build_html.py` →
+  `roadbook_print_pdf.py` / `roadbook_build_ppt.py` / `roadbook_inline_html.py`。
+- **PDF 由同一份 HTML 打印**，绝不另写一套模板（否则版式必然漂移）。
+- **地图必须走官方服务并保留审图号**，禁止 AI 自绘中国地图轮廓。
+- **每张实拍图标注来源**（`📷 小红书 @作者 · 帖子ID`）。
+- **HTML 要留编辑接口**：`data-edit` 属性 + 编辑模式开关 + 导出 JSON。
+- **PPT 交付前必须跑 `ppt_layout_check.py`，issues 归零**。
+- **先出「封面 + 总篇章 + DAY1」给用户确认排版与内容，再全量出剩余天数**。
+- 单文件版 HTML（图片 base64 内嵌）用于直接转发给同行队友。
+
 ## 交付清单
 
 - `攻略.xlsx` —— 5 个 sheet：全部行程 / 人均预算 / 费用明细（只留模板）/ 物品清单（1:1）/ 景点地图
 - `xhs_data/` —— notes/*.md + images/<note_id>/*.png + INDEX.md
+- （第二阶段）`roadbook/` —— 路书 HTML（含单文件版）+ PDF + PPTX + `assets/`（地图与压缩后的实拍图）
 - 口头说明：哪些价格是真抓的、哪些是估算的、时效性如何
 
 ## 硬约束

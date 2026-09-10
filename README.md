@@ -1,28 +1,37 @@
 # TravelPlan
 Use AI tools to generate road books and travel guides — extremely detailed. Data comes from Xiaohongshu (RED), Trip.com (Ctrip), and China Auto Rental (Shenzhou Zuche). Output files are available in PDF, HTML, Excel, and PPT formats. Scraping scripts are pre-built / embedded.
 
+> **🆕 Latest (2026-09-10)** — added the illustrated road-book pipeline (HTML / PDF / single-file),
+> a 16:9 poster-style PPT, switched map sourcing to real Xiaohongshu maps (Amap is now only a fallback),
+> fixed the PDF blank-page bug, and added `xhs-humanized-collect` as a sibling skill.
+> See [CHANGELOG.md](CHANGELOG.md) for the root-cause details.
+
 ---
 
 ## 📦 What's in this repo
 
 | Path | What it is |
 |---|---|
-| [`travel-guide-builder/`](travel-guide-builder/) | A **WorkBuddy / CodeBuddy Agent Skill** that turns a reference template into a multi-sheet itinerary `.xlsx` — with a per-person budget, a blank expense sheet, a 1:1 packing list, and a map index. |
-| `travel-guide-builder/scripts/` | Two runnable Python scripts (xlsx builder, Xiaohongshu asset indexer). |
-| `travel-guide-builder/references/` | The nine-column filling rules + a real-world scraping playbook. |
+| [`travel-guide-builder/`](travel-guide-builder/) | A **WorkBuddy / CodeBuddy Agent Skill** that turns a reference template into a multi-sheet itinerary `.xlsx` **and** a print-ready illustrated road book (HTML / PDF / PPT). |
+| [`xhs-humanized-collect/`](xhs-humanized-collect/) | A **WorkBuddy / CodeBuddy Agent Skill** for human-paced Xiaohongshu (RED) collection — persistent login, randomized timing, and a hard-won pitfall list (including one that can destroy real browser data). |
+| `travel-guide-builder/scripts/` | Runnable Python scripts: xlsx builder, road-book renderer, PDF printer, PPT builder, Xiaohongshu asset tooling. |
+| `travel-guide-builder/references/` | The nine-column filling rules, a real-world scraping playbook, and the road-book chapter. |
 | `travel-guide-builder/examples/` | A complete working sample: Guizhou 7D6N self-drive (10.1–10.7). |
+| [`CHANGELOG.md`](CHANGELOG.md) | What changed, and — more usefully — *why*. |
 
 ## 🚀 Install as an Agent Skill
 
 ```bash
 # user-level (available in all projects)
 cp -r travel-guide-builder ~/.workbuddy/skills/
+cp -r xhs-humanized-collect ~/.workbuddy/skills/
 
 # or project-level
-cp -r travel-guide-builder <your-project>/.workbuddy/skills/
+cp -r travel-guide-builder xhs-humanized-collect <your-project>/.workbuddy/skills/
 ```
 
 Then just ask your agent for e.g. *"做一份贵州 7 天 6 晚自驾攻略，参考我的模板表格"* — it will pick the skill up automatically.
+`travel-guide-builder` depends on `xhs-humanized-collect` for Xiaohongshu sourcing, so **install both**.
 
 ## 🛠 Use the scripts directly
 
