@@ -1,9 +1,12 @@
 # TravelPlan
-Use AI tools to generate road books and travel guides — extremely detailed. Data comes from Xiaohongshu (RED), Trip.com (Ctrip), and China Auto Rental (Shenzhou Zuche). Output files are available in PDF, HTML, Excel, and PPT formats. Scraping scripts are pre-built / embedded.
+Use AI tools to generate road books and travel guides — extremely detailed. Data comes from Xiaohongshu (RED), Trip.com (Ctrip), and China Auto Rental (Shenzhou Zuche). Output files: Excel workbook, illustrated road-book HTML (single-file export too) and two PPT decks. Scraping scripts are pre-built / embedded.
 
-> **🆕 Latest (2026-09-10)** — added the illustrated road-book pipeline (HTML / PDF / single-file),
-> a 16:9 poster-style PPT, switched map sourcing to real Xiaohongshu maps (Amap is now only a fallback),
-> fixed the PDF blank-page bug, and added `xhs-humanized-collect` as a sibling skill.
+> **🆕 Latest (2026-09-12)** — **PDF is no longer generated automatically**: deliver the HTML and let
+> the user print "Save as PDF" themselves (A4 / portrait / 1 page per sheet / ☑ background graphics),
+> which removes a whole class of renderer drift. Maps now follow an explicit **four-tier fallback**
+> (① Xiaohongshu spot guide map, verified → ② Tianditu → ③ Amap static-map API → ④ other sources),
+> with a new `map_sources.py` that keeps provenance and captions in sync. Tier ③ needs **your own
+> Amap Web Service key** — see the section below.
 > See [CHANGELOG.md](CHANGELOG.md) for the root-cause details.
 
 ---
@@ -12,9 +15,9 @@ Use AI tools to generate road books and travel guides — extremely detailed. Da
 
 | Path | What it is |
 |---|---|
-| [`travel-guide-builder/`](travel-guide-builder/) | A **WorkBuddy / CodeBuddy Agent Skill** that turns a reference template into a multi-sheet itinerary `.xlsx` **and** a print-ready illustrated road book (HTML / PDF / PPT). |
+| [`travel-guide-builder/`](travel-guide-builder/) | A **WorkBuddy / CodeBuddy Agent Skill** that turns a reference template into a multi-sheet itinerary `.xlsx` **and** an illustrated road book (HTML + PPT). The PDF is **not** produced by the skill — the user prints it from the HTML. |
 | [`xhs-humanized-collect/`](xhs-humanized-collect/) | A **WorkBuddy / CodeBuddy Agent Skill** for human-paced Xiaohongshu (RED) collection — persistent login, randomized timing, and a hard-won pitfall list (including one that can destroy real browser data). |
-| `travel-guide-builder/scripts/` | Runnable Python scripts: xlsx builder, road-book renderer, PDF printer, PPT builder, Xiaohongshu asset tooling. |
+| `travel-guide-builder/scripts/` | Runnable Python scripts: xlsx builder, road-book renderer, PPT builder, Xiaohongshu asset tooling, **map-source registry** (`map_sources.py`). The PDF printer is retained but **deprecated**. |
 | `travel-guide-builder/references/` | The nine-column filling rules, a real-world scraping playbook, and the road-book chapter. |
 | `travel-guide-builder/examples/` | A complete working sample: Guizhou 7D6N self-drive (10.1–10.7). |
 | [`CHANGELOG.md`](CHANGELOG.md) | What changed, and — more usefully — *why*. |
@@ -52,6 +55,40 @@ cells and mojibake — LLM-generated long Chinese text does corrupt silently, so
 
 Copy `examples/guizhou_content_sample.json` as your starting `content.json` and replace the
 content; `budget` / `fee_template` / `packing` / `maps` are all optional.
+
+## 🗝️ Set up: your own Amap (Gaode) Web Service key
+
+Maps in the road book are resolved by priority — **① Xiaohongshu spot guide map → ② Tianditu
+→ ③ Amap static-map API → ④ other fallback**. **Only tier ③ needs a key**, so everything still
+works without one; the key just buys you marker pins, zero UI chrome and `scale=2` sharpness.
+Tier ① is preferred because a creator's hand-drawn guide carries route order, viewpoints and
+mileages that no map API gives you — but it must be **verified** to actually depict that spot
+(see `references/scraping-playbook.md`, section 六).
+
+**This repo ships no key. Get your own (free tier):**
+
+1. Register / sign in at **<https://console.amap.com>** (Amap Open Platform 高德开放平台).
+2. **应用管理 → 我的应用 → 创建新应用** — any name, e.g. `AI-TravelPlan`.
+3. Open the app → **添加Key** → set **服务平台 = `Web服务` (Web Service)**.
+   ⚠️ Do **not** pick `Web端(JS API)`, iOS or Android — those key types fail on
+   `/v3/staticmap` with a useless `UNKNOWN_ERROR 20003`. This is the #1 setup mistake.
+4. Copy the 32-character key string.
+5. Binding / quota: leaving it unbound is fine for personal use (that's what "no IP restriction"
+   means in the console); set an IP whitelist only if you share it.
+6. Hand it to your script through an **environment variable** — never hard-code it:
+
+   ```bash
+   export AMAP_WEB_KEY=<your-key>
+   ```
+
+   Write collectors to read `AMAP_WEB_KEY` and fail loudly when it is missing, so the key never
+   ends up in a tracked file.
+
+**Two API gotchas worth knowing before you debug** (details in the playbook): `size` uses an
+asterisk (`size=1024*600`, not `1024x600`), and a marker `label` accepts **one character only**
+(`宁` / `A` work, `西宁市区` errors). Both surface as the same unhelpful `20003`.
+Calls are also QPS-limited — space them ≥3s; if everything suddenly fails, it is throttling,
+not your parameters: wait 2–3 minutes and retry **one minimal request** to confirm.
 
 ## 📊 Where the data comes from
 

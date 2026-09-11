@@ -50,7 +50,8 @@ guizhou_trip/
     │   ├── _ppt_shared_pages.j2   # 两套 PPT 共用 6 页 HTML
     │   ├── ppt_detail.html.j2     # 方案一模板
     │   └── ppt_simple.html.j2     # 方案二模板
-    ├── assets/maps/*.png          # 高德官方地图截图
+    ├── assets/maps/*.png          # 景点地图（来源按优先级降级：①小红书 → ②天地图 → ③高德API → ④保底）
+    ├── assets/maps/_sources.json  # 每张图的来源与图注登记（map_sources.py 生成/校验）
     ├── assets/img/<slug>/*.jpg    # 已压缩的实拍图（生成时自动产出）
     └── _raw/
         ├── photos/<slug>/<note_id>/NN.jpg   # 小红书原图（按景点+帖子两级分类）
@@ -79,19 +80,26 @@ $PY xhs_make_contact.py <slug>...            # 生成 contact sheet
 $PY xhs_list_picks.py <slug>                 # 打印「编号 → 路径 + 来源帖」
 $PY xhs_review_picks.py <slug> "3,9,13,17"   # 放大复核候选，读图确认
 
-# 3. 把选中的编号 + 文案填进 roadbook_build_html.py 的 PICKS / HERO
-# 4. 出产物
+# 3. 地图：按优先级降级采集（①小红书 → ②天地图 → ③高德API → ④保底）
+#    并把来源登记到 assets/maps/_sources.json
+$PY map_sources.py . --init                  # 为已有地图生成来源骨架
+$PY map_sources.py . --check                 # 校验：每张图有来源；xhs 来源必须已过甄别
+
+# 4. 把选中的编号 + 文案填进 roadbook_build_html.py 的 PICKS / HERO
+# 5. 出产物
 $PY roadbook_build_html.py --stage 1         # 先出封面+总篇章+DAY1
 $PY html_screenshot.py                       # 分段截图验收
-$PY roadbook_print_pdf.py                    # HTML → PDF（版式一致）
 $PY roadbook_build_ppt.py --stage 1
 $PY ppt_layout_check.py                      # PPT 版式自检
 $PY roadbook_inline_html.py                   # 单文件版（转发用）
-# 5. 确认后全量
-$PY roadbook_build_html.py --stage 7 && $PY roadbook_print_pdf.py && $PY roadbook_build_ppt.py --stage 7
+# 6. 确认后全量
+$PY roadbook_build_html.py --stage 7 && $PY roadbook_build_ppt.py --stage 7
 $PY roadbook_inline_html.py                  # 单文件版（转发用）
 
-# 6. 两套 PPT（方案一 / 方案二）
+# ⚠️ PDF 不自动生成（用户 2026-09-11 明确要求，永久生效）
+#    交付只给 HTML + 打印步骤，见「三、2」
+
+# 7. 两套 PPT（方案一 / 方案二）
 $PY extract_xlsx_slides.py                   # xlsx → slides.json（改了抽取器必须重跑）
 $PY allocate_photos.py                       # 配图 → photo_map.json
 $PY build_ppt_detail.py                      # 方案一 → ..._详细版.pptx
@@ -103,18 +111,49 @@ $PY make_detail_sheet.py && $PY make_simple_sheet.py   # 验收联络表
 
 ## 三、必须遵守的硬约束
 
-### 1. 地图合规（不能省）
-- **只用官方地图服务**：高德（或天地图）。**不要 AI 自绘中国地图轮廓** —— 地理精度不保证
-  且有合规风险。
-- 截图时**必须保留「地图审图号 GS(20xx)xxxx 号」和「甲测资字」这类版权声明**，
-  路书里每张地图的图注都要写出来源。
-- 截图的可行手法与坑（共 6 次试错，别再走一遍）见 `scraping-playbook.md`
-  的「高德地图截图」一节。
+### 1. 地图：优先级 + 合规（不能省）
 
-### 2. HTML 与 PDF 内容/版式必须完全一致
-PDF 由 `roadbook_print_pdf.py` 用同一份 HTML 打印（`emulate_media('print')`），
-**不要另写一套 PDF 模板**。打印 CSS 里给 `.card / figure / .ph / .bud-row`
-加 `break-inside:avoid`，否则卡片会被分页切断。
+**来源按优先级降级，上一层拿不到或甄别不过才用下一层：**
+
+| 优先级 | 来源 | 触发条件 |
+|---|---|---|
+| ① 最高 | **小红书搜到的大景点地图**（博主手绘导览图） | 默认首选，**必须先通过 4 项甄别**（见 `scraping-playbook.md` 六） |
+| ② 次高 | 天地图网页截图 | ① 找不到或甄别不通过 |
+| ③ 低 | 高德 Web 服务静态地图 API | 需要 marker 点位 / 零 UI / `scale=2` 高清 |
+| ④ 最低 | 其它保底（景区官网导览图等） | ①②③ 全拿不到 |
+
+- ① 的甄别是**硬要求**，四项都要过：图上有可读地名、帖文语境指向该景点、
+  相对位置合常识、是单景点图而非拼贴合集。**配错景点的地图比没有地图更糟**，
+  任一项不过就降级，并在交付说明里讲清降级原因。
+- **不要 AI 自绘中国地图轮廓** —— 地理精度不保证且有合规风险。
+- 地图服务出的图**必须保留「地图审图号 GS(20xx)xxxx 号」这类版权声明**；
+  小红书来的图图注写「图源：小红书 @作者 · 手绘整理，实际导航以官方地图为准」。
+- 每个 slug 的来源与图注登记在 `assets/maps/_sources.json`，
+  用 `scripts/map_sources.py --check` 校验（缺来源 / xhs 未甄别都会报出来）。
+- 采集手法与踩过的坑见 `scraping-playbook.md` 第六节。
+
+### 2. PDF 不自动生成 —— 由用户自己从 HTML 打印（永久生效）
+
+**不要再调用 `roadbook_print_pdf.py` 生成 PDF。** 用户 2026-09-11 明确要求永久取消
+自动出 PDF。交付时只给 HTML 文件，并把下面这段打印步骤一起给用户：
+
+| 打印项 | 取值 |
+|---|---|
+| 目标打印机 | **另存为 PDF** |
+| 页面 | 全部 |
+| 布局 | 纵向 |
+| 纸张尺寸 | A4 |
+| 每版打印页数 | 1 |
+| 边距 | 默认 |
+| 缩放 | 默认 |
+| 选项 | ☑ 页眉和页脚　☑ 背景图形 |
+
+> **「背景图形」必须勾上**，否则暖色底纹与卡片配色全部丢失，打印出来是一张白底黑字。
+> 打开 HTML 后按 `Ctrl+P`（macOS `Cmd+P`）即可调出该面板。
+
+唯一需要保留的 PDF 相关约束：打印 CSS 里 `.card / figure / .ph / .bud-row`
+仍要写 `break-inside:avoid`，否则用户打印时卡片会被分页切断。
+（`roadbook_print_pdf.py` 保留在仓库中但**属弃用状态**；除非用户当场明确要求，不要调用。）
 
 ### 3. 图片必须有来源标注
 每张实拍图下面标 `📷 小红书 @作者 · 帖子ID`，可溯源、尊重原创。
@@ -196,6 +235,9 @@ HTML 里给可编辑文本打了 `data-edit` 属性，右下角「✎ 编辑模�
 | **实拍图 credit 显示两行** | 卡片 `.author` 的 `innerText` 混进了发布日期（`Ssss！\n08-05`） | 采集侧取 `split('\n')[0]`；credit 用 `note_id[:8]`，别用完整 24 位 ID |
 | **`〔交通〕` / `〔事项〕` 块内容凭空消失** | 抽取层自己写了一套「只认 `【】`」的 `split_blocks`，非景点块被当成前言块：要么整块丢弃（H/I 列），要么错误并进上一个景点的详细行程（D 列） | 必须 `from nonspot_rules import split_blocks`（返回带 `kind` 的三元组），D→当日注意事项、E→丢弃、H→当日备注、I→并入注意事项 |
 | **`📌 当日总备注` 混进景点正文** | 它以无标记的行落在最后一个块里 | 抽取层用 `split_tail()` 切出来，再 `tail_block()` 拆成「小标题 + 正文」 |
+| **地图配错景点** | ① 优先用小红书导览图，只凭「搜索命中关键词」就采用，结果图其实是同名异地或隔壁景点 | 过完 `scraping-playbook.md` 六的四项甄别（图上地名 / 帖文语境 / 相对位置 / 非拼贴），任何一项不过就降级到 ② 天地图 |
+| **地图来源与图注不符** | 图注写「高德」但实际用的是天地图截图（或反过来），属来源标注错误 | 来源统一登记在 `assets/maps/_sources.json`，图注由它生成；`map_sources.py --check` 会校验 |
+| **顺手生成了 PDF** | 用户已明确要求 PDF 由他自己从 HTML 打印，多出来的 PDF 属无效产物 | 交付只给 HTML + 打印步骤（A4 / 纵向 / 每版 1 页 / 勾选背景图形）；`roadbook_print_pdf.py` 视为弃用 |
 
 ## 五、成本与耗时参考（贵州 7 天 6 晚 / 2 人 / 自驾）
 
@@ -204,5 +246,5 @@ HTML 里给可编辑文本打了 `data-edit` 属性，右下角「✎ 编辑模�
 | 小红书原图采集 | 16 个景点；每景点 2-3 关键词 × 取 6 帖；约 12 分钟（后台跑，含限速） |
 | 采集产出 | 423 张可用原图（900-1600px，176-800KB/张） |
 | 挑图 | contact sheet 粗筛 + 逐景点 1 张放大复核图 |
-| 地图 | 15 张高德截图（审图号完整） |
-| 出产物 | 阶段一（封面+总篇章+DAY1）HTML 43KB / PDF 12 页 / PPT 10 页 |
+| 地图 | 15 张官方地图截图（审图号完整），按 ①小红书 → ②天地图 → ③高德API 逐级降级取用 |
+| 出产物 | 阶段一（封面+总篇章+DAY1）HTML 43KB / PPT 10 页（**PDF 由用户自行打印，不再自动出**） |
