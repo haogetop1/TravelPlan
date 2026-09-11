@@ -37,11 +37,27 @@ with sync_playwright() as p:
     pg = b.new_page(viewport={'width': W, 'height': 900}, device_scale_factor=2)
     pg.goto('file:///' + os.path.abspath(HTML).replace('\\', '/'))
     pg.wait_for_timeout(2500)
-    # 触发懒加载
-    pg.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-    pg.wait_for_timeout(1500)
+
+    # 触发懒加载：必须**逐屏**滚动。
+    # 一次跳到底再回顶，只有底部图片进过视口，中间那些 loading="lazy" 的图
+    # 始终没被请求 —— 截图里成片空白，看着像「配图丢了」，其实文件都在。
+    h = pg.evaluate("document.body.scrollHeight")
+    y = 0
+    while y < h:
+        pg.evaluate("window.scrollTo(0, %d)" % y)
+        pg.wait_for_timeout(120)
+        y += 700
     pg.evaluate("window.scrollTo(0, 0)")
-    pg.wait_for_timeout(800)
+    pg.wait_for_timeout(600)
+
+    # 兜底：还没加载的把 loading 改成 eager，再等所有图 complete
+    pg.evaluate("() => [...document.images].forEach(i => { if (!i.complete) i.loading = 'eager'; })")
+    try:
+        pg.wait_for_function(
+            "() => [...document.images].every(i => i.complete && i.naturalWidth > 0)",
+            timeout=90000)
+    except Exception:
+        pass
     h = pg.evaluate("document.body.scrollHeight")
     print('page height:', h)
     full = os.path.join(OUT, '_full.png')
