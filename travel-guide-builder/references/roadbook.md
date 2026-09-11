@@ -191,6 +191,11 @@ HTML 里给可编辑文本打了 `data-edit` 属性，右下角「✎ 编辑模�
 | 单文件版没跟着重建 | 主 HTML 已修好，但 `_单文件版.html` 仍是旧版（机场当景点、还带「交通枢纽」标签） | 单文件版是 HTML 的**下游快照**，改完 HTML 必须重跑 `roadbook_inline_html.py`；交付前对**每一个**产物都单独回读校验 |
 | 漏写 `--stage 7` | HTML 里只有 2 个景点卡片，看着像「大部分内容丢了」 | 该脚本默认 `--stage 1`；全量交付必须显式 `--stage 7` |
 | 对整页图片版 PPT 做文字扫描 | 永远查不到内容，误判「没有该页」 | 校验对象是渲染源 HTML（`detail_fitted.html` / `simple_fitted.html`）+ 逐页截图 |
+| **景点卡不出图，且不报错** | `extract` 的 `SPOT_RULES` 没配 → section 的 `slug=None` → `resolve_photos()` 直接返回 `[]`，页面只是「少了实拍模块」，看日志毫无异常 | 把「景点名关键词 → 素材 slug」映射补齐；首次构建务必跑 `--stage 1` 确认目标景点「图N」不为 0 |
+| **挑图挑到博主封面** | 每篇的 `01.jpg` 是博主封面，多带大字标题或多图拼贴，放进景点卡很杂 | 从 `02.jpg` 起挑；先出 contact sheet 粗筛（`xhs_make_contact.py` / 自建），再定 `PICKS` |
+| **实拍图 credit 显示两行** | 卡片 `.author` 的 `innerText` 混进了发布日期（`Ssss！\n08-05`） | 采集侧取 `split('\n')[0]`；credit 用 `note_id[:8]`，别用完整 24 位 ID |
+| **`〔交通〕` / `〔事项〕` 块内容凭空消失** | 抽取层自己写了一套「只认 `【】`」的 `split_blocks`，非景点块被当成前言块：要么整块丢弃（H/I 列），要么错误并进上一个景点的详细行程（D 列） | 必须 `from nonspot_rules import split_blocks`（返回带 `kind` 的三元组），D→当日注意事项、E→丢弃、H→当日备注、I→并入注意事项 |
+| **`📌 当日总备注` 混进景点正文** | 它以无标记的行落在最后一个块里 | 抽取层用 `split_tail()` 切出来，再 `tail_block()` 拆成「小标题 + 正文」 |
 
 ## 五、成本与耗时参考（贵州 7 天 6 晚 / 2 人 / 自驾）
 

@@ -8,6 +8,48 @@ from openpyxl import load_workbook
 
 sys.stdout.reconfigure(encoding='utf-8')
 
+# ── 非景点块判定统一走共享模块（HTML 链路与 PPT 链路必须引用同一份）──
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from nonspot_rules import split_blocks, clean_items, KIND_ICON  # noqa: E402
+
+TAIL_RE = re.compile(r'^\s*📌\s*(当日总备注|当日总注意事项|总备注|总注意事项)\s*[：:]?\s*')
+
+
+def split_tail(body):
+    """把误并入景点块尾部的「📌 当日总备注 / 总注意事项」切出来。
+
+    它作为无标记的行落在最后一个块里，不切出来会跟景点正文一起显示。
+    """
+    tail, keep = [], []
+    for l in lines_of(body):
+        (tail if TAIL_RE.match(l) else keep).append(l)
+    return '\n'.join(keep), tail
+
+
+def tail_block(t):
+    """「📌 当日总备注：xxx」→ dict(name=小标题, lines=[正文])"""
+    parts = re.split(r'[：:]', re.sub(r'^\s*📌\s*', '', str(t)), 1)
+    return dict(name='📌 ' + parts[0].strip(),
+                lines=[parts[1].strip()] if len(parts) > 1 and parts[1].strip() else [])
+
+
+def block_label(name, kind):
+    """非景点块在当日备注 / 注意事项里的小标题（🚉 交通节点 / 🛍 事务节点）。"""
+    return '%s %s' % (KIND_ICON.get(kind, '📌'), (name or '当日说明').strip())
+
+
+# 名字里带这些词的 `【】` 块其实不是景点（如「【敦煌抵达提示】」「【返程托运提醒】」），
+# 但名字又不含交通/采购关键词，nonspot_rules 的默认判定会把它们当景点。
+EXTRA_NONSPOT = ["提示", "提醒", "说明", "须知", "注意"]
+
+
+def refine_kind(name, kind):
+    """把上述「伪景点」从 spot 降级为事务节点。"""
+    if kind == 'spot' and any(k in (name or '') for k in EXTRA_NONSPOT):
+        return 'chore'
+    return kind
+
+
 BASE = os.path.dirname(os.path.abspath(__file__))
 XLSX = os.path.join(BASE, "贵州7天6晚自驾攻略_10.1-10.7.xlsx")
 OUT = os.path.join(BASE, "roadbook", "content.json")
@@ -47,7 +89,11 @@ CITY_NAME = {1: "贵阳", 2: "安顺·黄果树", 3: "荔波", 4: "荔波",
              5: "黔东南·西江", 6: "贵阳", 7: "贵阳"}
 
 
-def split_blocks(text):
+# ⚠️ [已废弃] 只认「【】」的旧实现：会把 〔交通〕/〔事项〕 块当成「前言块」，
+# 导致机场 / 取车点 / 特产采购这类内容被静默丢弃或错误并入上一个景点。
+# 主流程已改用文件顶部 import 的共享模块 nonspot_rules.split_blocks（返回带 kind）。
+# 改名 legacy_ 前缀是为了不遮蔽那份 import —— 请勿在新代码中调用。
+def legacy_split_blocks(text):
     """把「【景点】\\n详情…\\n\\n【景点】\\n…」拆成 [(name, body)]"""
     if not text:
         return []
@@ -128,57 +174,74 @@ def parse_day(ws, r):
     food = lines_of(ws.cell(r, 6).value)
     hotel = lines_of(ws.cell(r, 7).value)
 
-    blocks_d = split_blocks(ws.cell(r, 4).value)
-    blocks_e = split_blocks(ws.cell(r, 5).value)
-    blocks_h = split_blocks(ws.cell(r, 8).value)
-    blocks_i = split_blocks(ws.cell(r, 9).value)
-
+    day_shots, day_tips, day_notice = [], [], []
     sections = []
-    for name, body in blocks_d:
-        if name is None:
-            if sections:
-                sections[-1]['detail'] += '\n' + body
-            continue
-        img_slug, map_slug = match_spot(name)
-        sections.append(dict(
-            name=name, short=core(name),
-            slug=img_slug, map=map_slug,
-            detail=body, shots=[], tips=[], notice=[],
-        ))
 
-    # ---- E 列：机位（按小景点分块），能对上 D 列就挂上去，否则留日级 ----
-    day_shots = []
-    for n, b in blocks_e:
-        ls = lines_of(b)
-        if not ls:
-            continue
+    # ---- D 列：景点建块；〔交通〕/〔事项〕/前言块降级为当日注意事项 ----
+    for name, body, kind in split_blocks(ws.cell(r, 4).value):
+        kind = refine_kind(name, kind)
+        if kind == 'spot':
+            body, tail = split_tail(body)
+            img_slug, map_slug = match_spot(name)
+            sections.append(dict(
+                name=name, short=core(name),
+                slug=img_slug, map=map_slug,
+                detail=body, shots=[], tips=[], notice=[],
+            ))
+            for t in tail:
+                day_tips.append(tail_block(t))
+        else:
+            day_notice.append(dict(name=block_label(name, kind),
+                                   lines=clean_items(lines_of(body)), kind=kind))
+
+    # ---- E 列：机位。景点块挂景点；前言块作日级机位；非景点块整块丢弃 ----
+    for name, body, kind in split_blocks(ws.cell(r, 5).value):
+        ls = clean_items(lines_of(body))
+        if not ls or kind in ('transit', 'chore'):
+            continue                       # 机场 / 取车 / 采购点没有「机位」概念
         placed = False
-        if n:
-            cn = core(n)
+        if name:
+            cn = core(name)
             for s in sections:
                 if cn and (cn in s['short'] or s['short'] in cn):
-                    s['shots'].append(dict(name=n, lines=ls))
+                    s['shots'].append(dict(name=name, lines=ls))
                     placed = True
                     break
         if not placed:
-            day_shots.append(dict(name=n or '当日机位', lines=ls))
+            day_shots.append(dict(name=name or '当日机位', lines=ls))
 
-    # ---- H / I 列 ----
-    day_tips, day_notice = [], []
-    used_h, used_i = set(), set()
-    for s in sections:
-        for n, b in match_pick(blocks_h, s):
-            s['tips'].extend(lines_of(b))
-            used_h.add(n)
-        for n, b in match_pick(blocks_i, s):
-            s['notice'].extend(lines_of(b))
-            used_i.add(n)
-    for n, b in blocks_h:
-        if n and n not in used_h:
-            day_tips.append(dict(name=n, lines=lines_of(b)))
-    for n, b in blocks_i:
-        if n and n not in used_i:
-            day_notice.append(dict(name=n, lines=lines_of(b)))
+    # ---- H 列：景点块挂景点；非景点块 → 当日备注（以 🚉/🛍 节点名起小标题）----
+    for name, body, kind in split_blocks(ws.cell(r, 8).value):
+        kind = refine_kind(name, kind)
+        body, tail = split_tail(body)
+        ls = lines_of(body)
+        if kind == 'spot':
+            cn = core(name)
+            hit = next((s for s in sections
+                        if cn and (cn in s['short'] or s['short'] in cn)), None)
+            if hit:
+                hit['tips'].extend(ls)
+            else:
+                day_tips.append(dict(name=name, lines=ls))
+        else:
+            day_tips.append(dict(name=block_label(name, kind), lines=ls))
+        for t in tail:
+            day_tips.append(tail_block(t))
+
+    # ---- I 列：景点块挂景点；其余全部并入当日注意事项 ----
+    for name, body, kind in split_blocks(ws.cell(r, 9).value):
+        kind = refine_kind(name, kind)
+        body, tail = split_tail(body)
+        ls = lines_of(body)
+        cn = core(name) if name else ''
+        hit = next((s for s in sections
+                    if cn and (cn in s['short'] or s['short'] in cn)), None)
+        if kind == 'spot' and hit:
+            hit['notice'].extend(ls)
+        else:
+            day_notice.append(dict(name=block_label(name, kind), lines=ls, kind=kind))
+        for t in tail:
+            day_notice.append(tail_block(t))
 
     # 机位：每个大景点下如果一条都没有，就把日级机位并到唯一 section 上
     if len(sections) == 1 and day_shots:

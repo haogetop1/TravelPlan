@@ -1,21 +1,36 @@
 # -*- coding: utf-8 -*-
 """把 HTML 用移动端视口截图（分段），用于目视验收排版。
 
-用法： python shot.py <html路径> [段数]
+用法：
+  python html_screenshot.py <html路径> [段数] [--out 输出目录]
+
+输出目录默认取「HTML 同级目录 / _raw/shots」（路书工程约定），
+不再往技能目录里写产物（技能目录应保持只读）；也可用 --out 显式指定。
 """
 import os, sys, math
 from PIL import Image
 from playwright.sync_api import sync_playwright
 
 sys.stdout.reconfigure(encoding='utf-8')
-BASE = os.path.dirname(os.path.abspath(__file__))
-OUT = os.path.join(BASE, 'roadbook', '_raw', 'shots')
-os.makedirs(OUT, exist_ok=True)
 
-args = [a for a in sys.argv[1:] if not a.startswith('-')]
-HTML = args[0] if args else os.path.join(BASE, 'roadbook', '贵州7天6晚自驾路书.html')
+argv = sys.argv[1:]
+out_arg = None
+if '--out' in argv:                 # 先摘掉 --out 及其值，免得被当成位置参数
+    i = argv.index('--out')
+    out_arg = argv[i + 1] if i + 1 < len(argv) else None
+    del argv[i:i + 2]
+args = [a for a in argv if not a.startswith('-')]
+
+if not args:
+    print(__doc__)
+    sys.exit(1)
+
+HTML = os.path.abspath(args[0])
 SEGS = int(args[1]) if len(args) > 1 else 6
 W = 430
+
+OUT = out_arg or os.path.join(os.path.dirname(HTML), '_raw', 'shots')
+os.makedirs(OUT, exist_ok=True)
 
 with sync_playwright() as p:
     b = p.chromium.launch(args=['--no-sandbox'])

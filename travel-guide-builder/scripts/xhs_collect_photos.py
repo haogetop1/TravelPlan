@@ -111,7 +111,7 @@ def search_cards(page, kw):
             const lk = sec.querySelector('.like-wrapper .count, .count');
             out.push({note_id: nid, href: href,
                       title: t ? t.innerText.trim() : '',
-                      author: au ? au.innerText.trim() : '',
+                      author: au ? au.innerText.trim().split('\\n')[0].trim() : '',
                       likes: lk ? lk.innerText.trim() : ''});
         });
         return out;
