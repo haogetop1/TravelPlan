@@ -56,6 +56,21 @@ roadbook.md 的执行顺序（删掉两处 `roadbook_print_pdf.py`）/ 硬约束
 **`roadbook_print_pdf.py` 保留在仓库里但标注弃用**，唯一保留的是打印 CSS 的
 `break-inside:avoid`（那是用户打印时唯一还需要我们兜住的地方）。
 
+### 🗑️ 后续：PDF 脚本彻底删除（同日，用户进一步要求）
+
+标注「弃用」还不够 —— **只要文件还在，下一次看到它的人（或 AI）就会顺手再跑一次**。
+所以 `roadbook_print_pdf.py` 已从技能目录与 GitHub 仓库**一并删除**（本地 + 远程），
+为此同步清理的引用点：
+
+- `SKILL.md`：第二阶段的脚本链、交付清单、两条硬约束 → 改为「脚本已删除，不要临时重写一个」
+- `references/roadbook.md`：数据流图删掉 `--▶ 路书.pdf` 分支改成「用户 Ctrl+P」、
+  章节标题改为「HTML / PPT」、硬约束 2、踩坑表末行
+- `README.md`：`scripts/` 表格里「PDF printer is retained but deprecated」→ **removed**
+- 全盘扫描确认：本地技能目录与仓库内**已无任何 `*pdf*` 脚本**
+
+> 注：该脚本仍存在于 2026-09-11 之前的 git 历史中。要让它在历史里也消失需要
+> `filter-branch` 重写历史 —— 除非有泄漏风险，一般不必做，删掉 HEAD 已能让链路失效。
+
 ### 📝 README：新增高德 Web 服务 key 的申请步骤
 
 此前只在 playbook 里讲了 API 用法，没说 key 从哪来。现补全：

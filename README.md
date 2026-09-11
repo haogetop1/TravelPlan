@@ -17,7 +17,7 @@ Use AI tools to generate road books and travel guides — extremely detailed. Da
 |---|---|
 | [`travel-guide-builder/`](travel-guide-builder/) | A **WorkBuddy / CodeBuddy Agent Skill** that turns a reference template into a multi-sheet itinerary `.xlsx` **and** an illustrated road book (HTML + PPT). The PDF is **not** produced by the skill — the user prints it from the HTML. |
 | [`xhs-humanized-collect/`](xhs-humanized-collect/) | A **WorkBuddy / CodeBuddy Agent Skill** for human-paced Xiaohongshu (RED) collection — persistent login, randomized timing, and a hard-won pitfall list (including one that can destroy real browser data). |
-| `travel-guide-builder/scripts/` | Runnable Python scripts: xlsx builder, road-book renderer, PPT builder, Xiaohongshu asset tooling, **map-source registry** (`map_sources.py`). The PDF printer is retained but **deprecated**. |
+| `travel-guide-builder/scripts/` | Runnable Python scripts: xlsx builder, road-book renderer, PPT builder, Xiaohongshu asset tooling, **map-source registry** (`map_sources.py`). **No PDF script ships here** — it was removed on purpose; the user prints the HTML via "Save as PDF". |
 | `travel-guide-builder/references/` | The nine-column filling rules, a real-world scraping playbook, and the road-book chapter. |
 | `travel-guide-builder/examples/` | A complete working sample: Guizhou 7D6N self-drive (10.1–10.7). |
 | [`CHANGELOG.md`](CHANGELOG.md) | What changed, and — more usefully — *why*. |

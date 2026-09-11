@@ -1,8 +1,11 @@
-# 图文路书流水线（HTML / PPT / PDF）
+# 图文路书流水线（HTML / PPT；PDF 由用户自行打印）
 
-从「攻略 xlsx」到「图文并茂路书三件套」的可复用流程。
-数据流是**单向**的：xlsx → `content.json` → HTML / PPT / PDF，
+从「攻略 xlsx」到「图文并茂路书」的可复用流程。
+数据流是**单向**的：xlsx → `content.json` → HTML / PPT，
 所以改内容只需改 xlsx 或 content.json，模板永远不用动。
+
+> PDF **不是这条流水线的产物**：链路里已没有任何 PDF 脚本，由用户在浏览器里
+> 「另存为 PDF」自己导出（打印配置见下方「三、2」）。
 
 ```
 攻略.xlsx ──roadbook_extract_content.py──▶ roadbook/content.json
@@ -12,9 +15,9 @@
    │            roadbook_build_html.py      roadbook_build_ppt.py      （共用同一份 JSON）
    │                        │                         │
    │                        ▼                         ▼
-   │                路书.html  ──roadbook_print_pdf.py──▶  路书.pdf
-   │                        │
-   │                        └──roadbook_inline_html.py──▶ 单文件版.html（图片 base64，可直接转发）
+   │                路书.html ──┬── roadbook_inline_html.py ──▶ 单文件版.html（base64 内嵌，可直接转发）
+   │                            │
+   │                            └── 用户自行 Ctrl+P 另存为 PDF（PDF 脚本已删除，不再自动生成）
    │
    └─extract_xlsx_slides.py──▶ roadbook/_raw/detail/slides.json
                                    │
@@ -134,8 +137,9 @@ $PY make_detail_sheet.py && $PY make_simple_sheet.py   # 验收联络表
 
 ### 2. PDF 不自动生成 —— 由用户自己从 HTML 打印（永久生效）
 
-**不要再调用 `roadbook_print_pdf.py` 生成 PDF。** 用户 2026-09-11 明确要求永久取消
-自动出 PDF。交付时只给 HTML 文件，并把下面这段打印步骤一起给用户：
+**不要再生成 PDF。** 用户 2026-09-11 明确要求永久取消自动出 PDF，
+2026-09-12 已把 `roadbook_print_pdf.py` 从技能与仓库中**删除**（不是弃用 —— 脚本已不存在）。
+交付时只给 HTML 文件，并把下面这段打印步骤一起给用户：
 
 | 打印项 | 取值 |
 |---|---|
@@ -153,7 +157,8 @@ $PY make_detail_sheet.py && $PY make_simple_sheet.py   # 验收联络表
 
 唯一需要保留的 PDF 相关约束：打印 CSS 里 `.card / figure / .ph / .bud-row`
 仍要写 `break-inside:avoid`，否则用户打印时卡片会被分页切断。
-（`roadbook_print_pdf.py` 保留在仓库中但**属弃用状态**；除非用户当场明确要求，不要调用。）
+（`roadbook_print_pdf.py` 已于 2026-09-12 从技能与仓库删除。若将来有人再要自动生成 PDF，
+**先回滚这条约定**，不要临时重写一个 —— 这条链路反复带来版式漂移与空白页，教训写在上面。）
 
 ### 3. 图片必须有来源标注
 每张实拍图下面标 `📷 小红书 @作者 · 帖子ID`，可溯源、尊重原创。
@@ -237,7 +242,7 @@ HTML 里给可编辑文本打了 `data-edit` 属性，右下角「✎ 编辑模�
 | **`📌 当日总备注` 混进景点正文** | 它以无标记的行落在最后一个块里 | 抽取层用 `split_tail()` 切出来，再 `tail_block()` 拆成「小标题 + 正文」 |
 | **地图配错景点** | ① 优先用小红书导览图，只凭「搜索命中关键词」就采用，结果图其实是同名异地或隔壁景点 | 过完 `scraping-playbook.md` 六的四项甄别（图上地名 / 帖文语境 / 相对位置 / 非拼贴），任何一项不过就降级到 ② 天地图 |
 | **地图来源与图注不符** | 图注写「高德」但实际用的是天地图截图（或反过来），属来源标注错误 | 来源统一登记在 `assets/maps/_sources.json`，图注由它生成；`map_sources.py --check` 会校验 |
-| **顺手生成了 PDF** | 用户已明确要求 PDF 由他自己从 HTML 打印，多出来的 PDF 属无效产物 | 交付只给 HTML + 打印步骤（A4 / 纵向 / 每版 1 页 / 勾选背景图形）；`roadbook_print_pdf.py` 视为弃用 |
+| **顺手生成了 PDF** | 用户已明确要求 PDF 由他自己从 HTML 打印，多出来的 PDF 属无效产物 | 交付只给 HTML + 打印步骤（A4 / 纵向 / 每版 1 页 / 勾选背景图形）；PDF 打印脚本已删除，别再写一个 |
 
 ## 五、成本与耗时参考（贵州 7 天 6 晚 / 2 人 / 自驾）
 
