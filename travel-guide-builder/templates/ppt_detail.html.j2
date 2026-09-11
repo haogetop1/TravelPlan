@@ -1,0 +1,216 @@
+{#
+  方案一 · 详细版 PPT 模板
+  1920x1080（渲染时 deviceScaleFactor=2 → 3840x2160）
+  视觉令牌完全复刻 roadbook.html.j2，保证「PPT 风格同 HTML 风格」。
+
+  页型（slide.kind）：
+    cover        ①封面
+    overview     ②总行程（全部行 C 列骨架 + 总路线地图）
+    budget       ③人均预算
+    preflight    ④出发前必看
+    dayroute     ⑤当天行程（B + C 列 + 当天城市地图）
+    spotdetail   ⑥景点详细（D 列 + 景点地图 + 备注 + 注意事项）
+    spotphotos   ⑦景点美景照 + 机位
+    daynotes     ⑧当天总备注 + 总注意事项 + 穿搭（含 🚉 交通节点 / 🛍 事务节点）
+    packing      ⑨物品清单（次尾页）
+    closing      ⑩结束祝福（尾页）
+#}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<style>
+{% include "_ppt_base.css.j2" %}
+</style>
+</head>
+<body>
+
+{% for s in slides %}
+
+{% include "_ppt_shared_pages.j2" %}
+
+{# ═══════════════ ⑤ 当天行程 ═══════════════ #}
+{% if s.kind == 'dayroute' %}
+<div class="slide">
+  <div class="hd">
+    <div class="hd-num">{{ s.label }}</div>
+    <div>
+      <div class="hd-t">{{ s.date }} {{ s.weekday }} · {{ s.main }}</div>
+      <div class="hd-sub">{{ s.transport }}</div>
+    </div>
+    <div class="hd-en">Day {{ s.day }}</div>
+  </div>
+  <div class="body" style="height:calc(1080px - 160px)">
+    <div class="cols">
+      <div class="col-l" style="flex:0 0 38%">
+        <div class="figmap">
+          <div class="figmap-box"><img src="{{ s.map }}" alt=""></div>
+          <div class="figmap-cap">{{ s.map_cap }}</div>
+        </div>
+      </div>
+      <div class="col-r">
+        <div class="card" style="flex:1;display:flex;flex-direction:column">
+          <div class="card-h"><span class="dot"></span>今日简要行程</div>
+          <div class="card-b" style="flex:1">
+            <div class="tl" style="padding-left:8px">
+              {% for b in s.brief %}
+              <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:9px">
+                <div style="flex:none;width:34px;height:34px;border-radius:50%;
+                     background:var(--gold-bg);color:var(--gold-d);font-weight:800;
+                     font-size:17px;display:flex;align-items:center;justify-content:center">
+                  {{ loop.index }}</div>
+                <div style="font-size:19.5px;line-height:1.6;color:var(--ink-2);
+                     padding-top:3px">{{ b|replace('→','') }}</div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{# ═══════════════ ⑥ 景点详细 ═══════════════ #}
+{% if s.kind == 'spotdetail' %}
+<div class="slide">
+  <div class="hd">
+    <div class="hd-num">{{ s.label }}</div>
+    <div><div class="hd-t">{{ s.name }}</div>
+      <div class="hd-sub">{{ s.sub }}</div></div>
+    <div class="hd-en">Detail</div>
+  </div>
+  <div class="body" style="height:calc(1080px - 200px)">
+    <div class="cols">
+      <div class="col-l" style="flex:0 0 40%">
+        {% if s.map %}
+        <div class="figmap">
+          <div class="figmap-box"><img src="{{ s.map }}" alt=""></div>
+          <div class="figmap-cap">{{ s.map_cap }}</div>
+        </div>
+        {% endif %}
+        {% if s.wear %}
+        <div class="card green" style="flex:none">
+          <div class="card-h"><span class="dot"></span>备注 · 穿搭</div>
+          <div class="card-b" style="font-size:18px">
+            {% for w in s.wear %}<p>{{ w }}</p>{% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+      <div class="col-r">
+        <div class="card" style="flex:1;display:flex;flex-direction:column">
+          <div class="card-h"><span class="dot"></span>游玩行程 / 说明</div>
+          <div class="card-b{% if s.detail|length >= 6 %} two-col{% endif %}"
+               style="flex:1;overflow:hidden">
+            {% for d in s.detail %}<p>{{ d }}</p>{% endfor %}
+          </div>
+        </div>
+        {% if s.avoid or s.notice %}
+        <div class="card warn" style="flex:none">
+          <div class="card-h"><span class="dot"></span>避坑与注意事项</div>
+          <div class="card-b" style="font-size:18px">
+            {% for a in s.avoid %}<p>{{ a }}</p>{% endfor %}
+            {% for n in s.notice %}<p>{{ n }}</p>{% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{# ═══════════════ ⑦ 景点美景照 + 机位 ═══════════════ #}
+{% if s.kind == 'spotphotos' %}
+<div class="slide">
+  <div class="hd">
+    <div class="hd-num">{{ s.label }}</div>
+    <div><div class="hd-t">{{ s.name }}</div>
+      <div class="hd-sub">小红书实拍 · 美景与机位</div></div>
+    <div class="hd-en">Gallery</div>
+  </div>
+  <div class="body" style="height:calc(1080px - 200px)">
+    <div class="cols">
+      <div class="col-l" style="flex:1;min-width:0">
+        <div class="pgrid n{{ s.photos|length }}">
+          {% for p in s.photos %}<div class="ph"><img src="{{ p }}" alt=""></div>{% endfor %}
+        </div>
+      </div>
+      <div class="col-r" style="flex:0 0 34%">
+        <div class="card" style="flex:1;display:flex;flex-direction:column">
+          <div class="card-h"><span class="dot"></span>最佳机位</div>
+          <div class="card-b" style="flex:1;font-size:18.5px">
+            {% if s.shots %}
+            <ul class="ul tight">
+              {% for x in s.shots %}<li>{{ x }}</li>{% endfor %}
+            </ul>
+            {% else %}
+            <p style="color:var(--muted)">本页景点以实拍美景为主，具体机位见当日其他景点页。</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{# ═══════════════ ⑧ 当天总备注 ═══════════════ #}
+{% if s.kind == 'daynotes' %}
+<div class="slide">
+  <div class="hd">
+    <div class="hd-num">{{ s.label }}</div>
+    <div><div class="hd-t">{{ s.date }} · 当日收尾</div>
+      <div class="hd-sub">总备注 · 总注意事项 · 穿搭建议</div></div>
+    <div class="hd-en">Day {{ s.day }} Notes</div>
+  </div>
+  <div class="body" style="padding-top:22px">
+    <div class="pf" style="height:calc(1080px - 250px)">
+      <div class="pf-col">
+        <div class="card accent" style="flex:1">
+          <div class="card-h"><span class="dot"></span>当天总备注</div>
+          <div class="card-b{% if s.dense %} dense{% endif %}">
+            {% if s.note_blocks %}
+              {% for blk in s.note_blocks %}
+                {% if blk.head %}<div class="mini">{{ blk.head }}</div>{% endif %}
+                <ul class="ul tight">
+                  {% for x in blk.lines %}<li>{{ x }}</li>{% endfor %}</ul>
+              {% endfor %}
+            {% else %}<p style="color:var(--muted)">当日无额外备注。</p>{% endif %}
+          </div>
+        </div>
+      </div>
+      <div class="pf-col">
+        <div class="card warn" style="flex:1">
+          <div class="card-h"><span class="dot"></span>当天总注意事项</div>
+          <div class="card-b{% if s.dense %} dense{% endif %}">
+            {% if s.notice_blocks %}
+              {% for blk in s.notice_blocks %}
+                {% if blk.head %}<div class="mini">{{ blk.head }}</div>{% endif %}
+                <ul class="ul tight">
+                  {% for x in blk.lines %}<li>{{ x }}</li>{% endfor %}</ul>
+              {% endfor %}
+            {% else %}<p style="color:var(--muted)">当日无额外注意事项。</p>{% endif %}
+          </div>
+        </div>
+      </div>
+      <div class="pf-col">
+        <div class="card green" style="flex:1">
+          <div class="card-h"><span class="dot"></span>当天穿搭建议</div>
+          <div class="card-b">
+            {% if s.wear %}<ul class="ul tight">
+              {% for x in s.wear %}<li>{{ x }}</li>{% endfor %}</ul>
+            {% else %}<p style="color:var(--muted)">按当日备注中的穿搭执行即可。</p>{% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endfor %}
+</body>
+</html>

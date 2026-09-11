@@ -1,0 +1,217 @@
+{#
+  方案二 · 简洁版 PPT 模板
+  1920x1080（渲染时 deviceScaleFactor=2 → 3840x2160）
+
+  与方案一的关系：
+    · 封面 / 总行程 / 人均预算 / 出发前必看 / 物品清单 / 结束页 —— 完全共用
+      （`_ppt_shared_pages.j2`，视觉与文案零差异，避免两套产物说法不一致）
+    · CSS 令牌共用（`_ppt_base.css.j2`），保证「方案一 = 方案二 = HTML」同一套风格
+    · 只有「中间的逐日页面」不同：
+        方案一 每景点 2 页 + 当天行程页 + 当天收尾页（信息全，页数多）
+        方案二 每天 2 页（行程 + 吃住，一眼看完一天）
+
+  ⚠️ 版式约束（踩过坑，别改回去）：
+    逐日页每天只有 2 页，而「行程时间轴」一页最多 18 步 ≈ 700px 高，
+    必须独占一条**整页高**的列，不能塞进上下两段里（塞了就会被裁）。
+    剩下三条（推荐机位 / 避坑注意事项 / 备注穿搭）也不能全堆在同一列：
+    实测 DAY7 的「备注+避坑」就有 1315px，半栏（848px）根本放不下。
+    所以按「宽 → 矮」的原则分配给两页：
+      page A 行程：行程规划（整页高，42%）+ 机位 / 避坑注意事项（右侧上下分）
+      page B 吃住：三餐 / 特色美食 / 住宿（上排三列）+ 备注·穿搭（通栏双栏）
+    「通栏 + column-count」是压低高度的关键：栏宽够宽时一条目只占一行，
+    高度就减半；盲目用 column-count 去窄栏反而更矮不了（宽度减半行数翻倍）。
+
+  页型（slide.kind）：
+    cover / overview / budget / preflight / packing / closing  ← 共用
+    dayplan      当天行程（时间轴 + 推荐机位 + 避坑注意事项）
+    daystay      当天吃住（三餐 + 特色美食 + 住宿推荐 + 备注穿搭）
+#}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<style>
+{% include "_ppt_base.css.j2" %}
+
+/* ---------- 方案二：编号步骤（今日行程规划） ---------- */
+.step{display:flex;gap:12px;align-items:flex-start;margin-bottom:9px}
+.step:last-child{margin-bottom:0}
+.step-n{flex:none;width:32px;height:32px;border-radius:50%;background:var(--gold-bg);
+  color:var(--gold-d);font-weight:800;font-size:16px;display:flex;align-items:center;
+  justify-content:center}
+.step-t{font-size:19px;line-height:1.56;color:var(--ink-2);padding-top:3px}
+
+/* ---------- 方案二：住宿条目 ---------- */
+/* 源表住宿项是「区域标签行 + ×酒店行」混排，直接当正文会看不出层级 */
+.stay-lb{font-size:17px;font-weight:800;color:var(--gold-d);margin:10px 0 5px}
+.stay-lb:first-child{margin-top:0}
+.stay-it{position:relative;padding-left:17px;margin-bottom:5px;
+  font-size:17.5px;line-height:1.52}
+.stay-it:last-child{margin-bottom:0}
+.stay-it::before{content:'';position:absolute;left:5px;top:10px;width:6px;height:6px;
+  border-radius:50%;background:var(--gold-l)}
+
+/* ---------- 方案二：逐日页栅格 ---------- */
+/* 行程页：左列整页高（时间轴很长，必须独占），右侧上下分（机位 / 避坑） */
+.dgrid{display:grid;grid-template-columns:42% 1fr;gap:22px;height:100%}
+.dcell{display:flex;flex-direction:column;min-height:0}
+.dstack{display:flex;flex-direction:column;gap:18px;min-height:0}
+/* ⚠️ 必须用 `flex:1 1 auto`（基准 = 内容高度），**不能**用固定配比 `flex:5 / flex:10`。
+   实测内容高度逐日差异极大（机位 51–497px、避坑 90–438px），写死配比的日子
+   就会把机位压成 217px 而裁掉 306px 内容。用 auto 基准后两张卡按内容分摊富余高度，
+   两者合计最多 746px < 830px 可用，全天都装得下；万一真的超出，
+   min-height:0 让它先被压缩，自动缩排再接手收字号。 */
+/* r1（推荐机位）flex-shrink:0 —— 它内容少但「说明性」强，被按比例压缩时会
+   直接裁掉整段（DAY7 实测被裁 17px）。让内容多、可读性弹性大的 r2 单独承担收缩。 */
+.dstack .r1{flex:1 0 auto;display:flex;flex-direction:column;min-height:0}
+.dstack .r2{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
+/* 吃住页：上排三列 + 下排通栏。
+   上排给 64%：三列里最高的是「住宿推荐」（DAY5 实测 458px），
+   58% 时只有 432px 可视，会裁掉 49px。 */
+.sstack{display:flex;flex-direction:column;gap:18px;height:100%}
+.sstack .stop{flex:0 0 64%;display:flex;gap:22px;min-height:0}
+.stop .c1{flex:0 0 30%;display:flex;flex-direction:column;min-height:0}
+.stop .c2{flex:0 0 30%;display:flex;flex-direction:column;min-height:0}
+.stop .c3{flex:1;display:flex;flex-direction:column;min-height:0}
+.sstack .sbot{flex:1;display:flex;flex-direction:column;min-height:0}
+/* 通栏双栏：栏宽足够时才真的降高度 */
+.cw2{column-count:2;column-gap:44px}
+.cw2 p,.cw2 li,.cw2 .stay-it{break-inside:avoid}
+.cw2 .mini{break-after:avoid}
+</style>
+</head>
+<body>
+
+{% for s in slides %}
+
+{% include "_ppt_shared_pages.j2" %}
+
+{# ═══════════════ A 当天行程 ═══════════════ #}
+{% if s.kind == 'dayplan' %}
+<div class="slide">
+  <div class="hd">
+    <div class="hd-num">{{ s.label }}</div>
+    <div>
+      <div class="hd-t">{{ s.main }}</div>
+      <div class="hd-sub">{{ s.date }} {{ s.weekday }} · 行程规划 · 推荐机位 · 避坑提醒</div>
+    </div>
+    <div class="hd-en">Day {{ s.day }} · Plan</div>
+  </div>
+  <div class="body" style="height:calc(1080px - 172px);padding-top:20px">
+    <div class="dgrid">
+      {# 左列：整页高，只放时间轴 #}
+      <div class="card accent dcell">
+        <div class="card-h"><span class="dot"></span>今日行程规划</div>
+        <div class="card-b" style="flex:1;overflow:hidden">
+          {% for b in s.brief %}
+          <div class="step">
+            <div class="step-n">{{ loop.index }}</div>
+            <div class="step-t">{{ b }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {# 右列：上 = 推荐机位，下 = 避坑注意事项（内容多，给更大配比） #}
+      <div class="dstack">
+        <div class="card r1">
+          <div class="card-h"><span class="dot"></span>推荐机位</div>
+          <div class="card-b" style="flex:1;overflow:hidden">
+            {% if s.shot_groups %}
+              {% for g in s.shot_groups %}
+                {% if g.name %}<div class="mini">{{ g.name }}</div>{% endif %}
+                <ul class="ul tight">
+                  {% for x in g.shots %}<li>{{ x }}</li>{% endfor %}</ul>
+              {% endfor %}
+            {% else %}
+            <p style="color:var(--muted)">今日以交通 / 事务为主，无固定机位安排。</p>
+            {% endif %}
+          </div>
+        </div>
+        <div class="card warn r2">
+          <div class="card-h"><span class="dot"></span>避坑 · 注意事项</div>
+          <div class="card-b cw2" style="flex:1;overflow:hidden">
+            {% if s.notice_blocks %}
+              {% for blk in s.notice_blocks %}
+                {% if blk.head %}<div class="mini">{{ blk.head }}</div>{% endif %}
+                <ul class="ul tight">
+                  {% for x in blk.lines %}<li>{{ x }}</li>{% endfor %}</ul>
+              {% endfor %}
+            {% else %}<p style="color:var(--muted)">当日无额外注意事项。</p>{% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>{{ s.date }} {{ s.weekday }} · {{ s.main }}</span>
+    <span>{{ s.foot_note }}</span></div>
+</div>
+{% endif %}
+
+{# ═══════════════ B 当天吃住 ═══════════════ #}
+{% if s.kind == 'daystay' %}
+<div class="slide">
+  <div class="hd">
+    <div class="hd-num">{{ s.label }}</div>
+    <div>
+      <div class="hd-t">今日吃住</div>
+      <div class="hd-sub">{{ s.date }} {{ s.weekday }} · 三餐 · 特色美食 · 住宿推荐 · 备注穿搭</div>
+    </div>
+    <div class="hd-en">Eat &amp; Stay</div>
+  </div>
+  <div class="body" style="height:calc(1080px - 172px);padding-top:20px">
+    <div class="sstack">
+      <div class="stop">
+        <div class="card accent c1">
+          <div class="card-h"><span class="dot"></span>今日三餐</div>
+          <div class="card-b" style="font-size:18.5px">
+            {% for m in s.meals %}<p>{{ m }}</p>{% endfor %}
+          </div>
+        </div>
+        <div class="card c2">
+          <div class="card-h"><span class="dot"></span>特色美食 · 饮品</div>
+          <div class="card-b" style="flex:1;overflow:hidden">
+            {% if s.food_extras %}
+            <ul class="ul tight">
+              {% for x in s.food_extras %}<li>{{ x }}</li>{% endfor %}</ul>
+            {% else %}<p style="color:var(--muted)">当日无额外推荐，就近解决即可。</p>{% endif %}
+          </div>
+        </div>
+        <div class="card c3">
+          <div class="card-h"><span class="dot"></span>住宿推荐 · 报价参考</div>
+          <div class="card-b" style="flex:1;overflow:hidden">
+            {% for g in s.hotel_groups %}
+              {% if g.head %}<div class="mini">{{ g.head }}</div>{% endif %}
+              {% for it in g.rows %}
+                {% if it.kind == 'label' %}
+                <div class="stay-lb">{{ it.text }}</div>
+                {% else %}
+                <div class="stay-it">{{ it.text }}</div>
+                {% endif %}
+              {% endfor %}
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      {# 通栏：备注·穿搭。双栏排版把高度压到一半，避免挤在上面三列里被裁 #}
+      <div class="card green sbot">
+        <div class="card-h"><span class="dot"></span>备注 · 穿搭</div>
+        <div class="card-b cw2" style="flex:1;overflow:hidden">
+          {% if s.wear_blocks %}
+            {% for blk in s.wear_blocks %}
+              {% if blk.head %}<div class="mini">{{ blk.head }}</div>{% endif %}
+              <ul class="ul tight">
+                {% for x in blk.lines %}<li>{{ x }}</li>{% endfor %}</ul>
+            {% endfor %}
+          {% else %}<p style="color:var(--muted)">按当日天气常规穿着即可。</p>{% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>{{ s.date }} {{ s.weekday }} · {{ s.main }}</span>
+    <span>住宿为参考报价，以实际预订为准</span></div>
+</div>
+{% endif %}
+
+{% endfor %}
+</body>
+</html>

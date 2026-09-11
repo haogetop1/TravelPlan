@@ -1,0 +1,174 @@
+{# 方案一 / 方案二 共用页面：封面 · 总行程 · 人均预算 · 出发前必看 · 物品清单 · 结束页 #}
+
+{# ═══════════════ ① 封面 ═══════════════ #}
+{% if s.kind == 'cover' %}
+<div class="slide">
+  <div class="cover">
+    <img class="cover-img" src="{{ s.cover_img }}" alt="">
+    <div class="cover-mask"></div>
+    <div class="cover-inner">
+      <div class="cover-kicker">SELF-DRIVE ROADBOOK</div>
+      <h1>{{ s.title_pre }}<span class="hl">{{ s.title_hl }}</span>{{ s.title_post }}</h1>
+      <div class="cover-line"></div>
+      <div class="cover-sub">{{ s.dateRange }} · {{ s.route }} · {{ s.miles }}</div>
+      <div class="chips" style="margin-top:26px">
+        {% for c in s.chips %}<div class="chip">{{ c }}</div>{% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{# ═══════════════ ② 总行程 ═══════════════ #}
+{% if s.kind == 'overview' %}
+<div class="slide">
+  <div class="hd">
+    <div class="hd-num">02</div>
+    <div><div class="hd-t">总行程</div></div>
+    <div class="hd-en">Overview</div>
+  </div>
+  <div class="body" style="height:calc(1080px - 130px)">
+    <div class="cols">
+      <div class="col-l" style="flex:0 0 34%">
+        <div class="figmap">
+          <div class="figmap-box"><img src="{{ s.map }}" alt=""></div>
+          <div class="figmap-cap">{{ s.map_cap }}</div>
+        </div>
+      </div>
+      <div class="col-r">
+        <div class="tl ov">
+          {% for d in s.days %}
+          <div class="tl-item">
+            <div class="tl-day">{{ d.label }}</div>
+            <div class="tl-main">{{ d.main }}</div>
+            <div class="tl-chain">{{ d.chain|safe }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{# ═══════════════ ③ 人均预算 ═══════════════ #}
+{% if s.kind == 'budget' %}
+<div class="slide">
+  <div class="hd">
+    <div class="hd-num">03</div>
+    <div><div class="hd-t">人均预算</div></div>
+    <div class="hd-en">Budget</div>
+  </div>
+  <div class="body">
+    <table>
+      <thead><tr>{% for h in s.headers %}<th>{{ h }}</th>{% endfor %}</tr></thead>
+      <tbody>
+        {% for r in s.rows %}
+        <tr>
+          <td style="font-weight:700;color:var(--ink)">{{ r.0 }}</td>
+          <td>{{ r.1 }}</td>
+          <td class="plain">{{ r.2 }}</td>
+          <td class="num">{{ r.3 }}</td>
+          <td class="plain">{{ r.4 }}</td>
+          <td style="font-size:16.5px;color:var(--muted)">{{ r.5 }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="tot">
+      <div class="tot-box">
+        <div class="lb">人均总预算 · 平日参考价</div>
+        <div class="vl">{{ s.weekday }}</div>
+        <div class="sub">{{ s.weekday2 }}</div>
+      </div>
+      <div class="tot-box">
+        <div class="lb">人均总预算 · 国庆实际价</div>
+        <div class="vl">{{ s.holiday }}</div>
+        <div class="sub">{{ s.holiday2 }}</div>
+      </div>
+    </div>
+    <div class="note-line" style="margin-top:20px">{{ s.warning }}</div>
+  </div>
+</div>
+{% endif %}
+
+{# ═══════════════ ④ 出发前必看 ═══════════════ #}
+{% if s.kind == 'preflight' %}
+<div class="slide">
+  <div class="hd">
+    <div class="hd-num">04</div>
+    <div><div class="hd-t">出发前必看</div></div>
+    <div class="hd-en">Before You Go</div>
+  </div>
+  <div class="body" style="padding-top:20px">
+    <div class="pf">
+      <div class="pf-col">
+        <div class="card accent" style="flex:1">
+          <div class="card-h"><span class="dot"></span>需要提前预约 / 订票</div>
+          <div class="card-b"><ul class="ul tight">
+            {% for x in s.book %}<li>{{ x }}</li>{% endfor %}
+          </ul></div>
+        </div>
+      </div>
+      <div class="pf-col">
+        <div class="card warn" style="flex:1">
+          <div class="card-h"><span class="dot"></span>高频避坑</div>
+          <div class="card-b"><ul class="ul tight">
+            {% for x in s.avoid %}<li>{{ x }}</li>{% endfor %}
+          </ul></div>
+        </div>
+      </div>
+      <div class="pf-col">
+        <div class="card green" style="flex:1">
+          <div class="card-h"><span class="dot"></span>气候与穿搭</div>
+          <div class="card-b"><ul class="ul tight">
+            {% for x in s.wear %}<li>{{ x }}</li>{% endfor %}
+          </ul></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{# ═══════════════ ⑨ 物品清单 ═══════════════ #}
+{% if s.kind == 'packing' %}
+<div class="slide">
+  <div class="hd">
+    <div class="hd-num">★</div>
+    <div><div class="hd-t">物品清单</div>
+      <div class="hd-sub">出发前照单打勾，别等到服务区才发现漏了</div></div>
+    <div class="hd-en">Packing</div>
+  </div>
+  <div class="body" style="padding-top:22px">
+    <div class="pack">
+      {% for g in s.groups %}
+      <div class="pack-col">
+        <div class="ph">{{ g.head }}</div>
+        <ul>{% for it in g.rows %}<li>{{ it }}</li>{% endfor %}</ul>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{# ═══════════════ ⑩ 结束页 ═══════════════ #}
+{% if s.kind == 'closing' %}
+<div class="slide">
+  <div class="cover">
+    <img class="cover-img" src="{{ s.cover_img }}" alt="">
+    <div class="cover-mask"></div>
+    <div class="end-inner">
+      <div class="end-kicker">THE END</div>
+      <div class="end-title">{{ s.title_pre }}<span class="hl">{{ s.title_hl }}</span>{{ s.title_post }}</div>
+      <div class="end-wish">{{ s.wish }}</div>
+      <div class="cover-line" style="margin:34px auto 0"></div>
+      <div class="end-sub">{{ s.sub }}</div>
+      <div class="chips end-chips">
+        {% for c in s.chips %}<div class="chip">{{ c }}</div>{% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
