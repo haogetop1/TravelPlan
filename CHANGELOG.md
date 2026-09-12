@@ -71,6 +71,12 @@ roadbook.md 的执行顺序（删掉两处 `roadbook_print_pdf.py`）/ 硬约束
 > 注：该脚本仍存在于 2026-09-11 之前的 git 历史中。要让它在历史里也消失需要
 > `filter-branch` 重写历史 —— 除非有泄漏风险，一般不必做，删掉 HEAD 已能让链路失效。
 
+**打印 CSS 同日稍晚也删了**（用户实测 `break-inside:avoid` 挡不住浏览器打印分页，
+卡片照样被切 —— 无效代码）：`@media print` 整块 + 贵州 `.fig-map/.ph` 里当年 v2 修复的
+`page-break-inside/break-inside` 属性，共清理 6 个文件（技能模板、青甘模板与成品 HTML、
+贵州模板与两份成品 HTML）。「PDF 相关约束」就此清零，上面第 56-57 行那句「唯一保留」
+随之作废。
+
 ### 📝 README：新增高德 Web 服务 key 的申请步骤
 
 此前只在 playbook 里讲了 API 用法，没说 key 从哪来。现补全：

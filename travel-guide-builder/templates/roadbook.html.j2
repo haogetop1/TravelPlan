@@ -159,18 +159,7 @@ table.tbl td.num{text-align:right;font-variant-numeric:tabular-nums;font-weight:
   background:var(--gold);padding:10px 14px;border-radius:22px;box-shadow:0 4px 14px rgba(138,106,79,.36)}
 #editbar button.off{background:#8a8378}
 [contenteditable="true"]{outline:1.5px dashed var(--gold);outline-offset:3px;border-radius:3px;background:#fffdf7}
-@media print{
-  #editbar{display:none}
-  body{background:#fff;font-size:13px}
-  .wrap{max-width:none}
-  .card,.bud-row,figure,.ph,.bud-box,.note{break-inside:avoid;page-break-inside:avoid}
-  .chapter{break-after:avoid;page-break-after:avoid}
-  .cover{min-height:auto;break-inside:avoid}
-  .cover-img{height:320px}
-  .spot{break-inside:auto}
-  .seg,.bullets li{orphans:3;widows:3}
-  a{color:inherit;text-decoration:none}
-}
+
 @media (max-width:400px){
   .cover-img{height:370px}
   .cover h1{font-size:26px}
