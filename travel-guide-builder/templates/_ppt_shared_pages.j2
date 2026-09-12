@@ -60,6 +60,20 @@
     <div class="hd-en">Budget</div>
   </div>
   <div class="body">
+    <style>
+      .bud-tbl{font-size:16px}
+      .bud-tbl table{font-size:inherit}
+      .bud-tbl th{padding:9px 12px;font-size:16px}
+      .bud-tbl td{padding:8px 12px;vertical-align:middle}
+      .bud-tbl th:nth-child(1){width:150px}
+      .bud-tbl th:nth-child(2){width:210px}
+      .bud-tbl th:nth-child(3){width:120px}
+      .bud-tbl th:nth-child(4){width:120px}
+      .bud-tbl td:nth-child(2){font-size:14.5px;color:var(--muted)}
+      .bud-tbl td:nth-child(5){font-size:14.5px;color:var(--muted)}
+      .bud-tbl td:nth-child(6){font-size:14.5px;color:var(--muted)}
+    </style>
+    <div class="bud-tbl fit">
     <table>
       <thead><tr>{% for h in s.headers %}<th>{{ h }}</th>{% endfor %}</tr></thead>
       <tbody>
@@ -70,24 +84,25 @@
           <td class="plain">{{ r.2 }}</td>
           <td class="num">{{ r.3 }}</td>
           <td class="plain">{{ r.4 }}</td>
-          <td style="font-size:16.5px;color:var(--muted)">{{ r.5 }}</td>
+          <td style="font-size:16.5px;color:var(--muted)">{{ r[5] if r|length > 5 else '' }}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
     <div class="tot">
       <div class="tot-box">
-        <div class="lb">人均总预算 · 平日参考价</div>
-        <div class="vl">{{ s.weekday }}</div>
-        <div class="sub">{{ s.weekday2 }}</div>
+        <div class="lb">{{ s.tot_lb1 or '人均总预算 · 平日参考价' }}</div>
+        <div class="vl">{{ s.tot1 or s.weekday }}</div>
+        <div class="sub">{{ s.tot_sub1 or s.weekday2 }}</div>
       </div>
       <div class="tot-box">
-        <div class="lb">人均总预算 · 国庆实际价</div>
-        <div class="vl">{{ s.holiday }}</div>
-        <div class="sub">{{ s.holiday2 }}</div>
+        <div class="lb">{{ s.tot_lb2 or '人均总预算 · 国庆实际价' }}</div>
+        <div class="vl">{{ s.tot2 or s.holiday }}</div>
+        <div class="sub">{{ s.tot_sub2 or s.holiday2 }}</div>
       </div>
     </div>
     <div class="note-line" style="margin-top:20px">{{ s.warning }}</div>
+    </div>
   </div>
 </div>
 {% endif %}
