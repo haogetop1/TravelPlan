@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>旅行邪修物品与方法大全 · 抖音野路子笔记</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231c1917'/%3E%3Ctext x='16' y='23' font-size='16' text-anchor='middle' fill='%23e8c15a' font-family='serif'%3E%E4%BF%AE%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://miaoda.feishu.cn/fonts/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Noto+Serif+SC:wght@600;900&display=swap">
+<style>
+  :root{
+    --bg:#12100d; --bg2:#171310; --panel:#1e1916; --panel2:#261f1a;
+    --line:rgba(232,193,90,.14); --line2:rgba(255,255,255,.08);
+    --text:#ece5d8; --muted:#a89e8c; --dim:#6f6557;
+    --gold:#e8c15a; --gold2:#b8943f; --jade:#7ec8b8; --red:#e0655a;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    font-family:"Noto Sans SC",-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+    background:var(--bg);color:var(--text);line-height:1.7;-webkit-font-smoothing:antialiased;
+  }
+  .serif{font-family:"Noto Serif SC",serif}
+  .wrap{max-width:1060px;margin:0 auto;padding:0 22px}
+
+  /* Hero */
+  .hero{
+    position:relative;overflow:hidden;
+    background:
+      radial-gradient(800px 380px at 20% 0%, rgba(232,193,90,.14), transparent 60%),
+      radial-gradient(700px 360px at 85% 10%, rgba(126,200,184,.10), transparent 60%),
+      linear-gradient(180deg,var(--bg2),var(--bg));
+    border-bottom:1px solid var(--line);
+  }
+  .hero::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+  .hero-in{padding:64px 22px 48px;max-width:1060px;margin:0 auto}
+  .seal{
+    display:inline-flex;align-items:center;gap:8px;font-size:12.5px;letter-spacing:.2em;
+    color:var(--gold);border:1px solid var(--line);border-radius:999px;padding:6px 16px;
+    background:rgba(232,193,90,.05);margin-bottom:22px;
+  }
+  .seal::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold)}
+  h1{font-family:"Noto Serif SC",serif;font-size:clamp(30px,5vw,48px);font-weight:900;line-height:1.25;letter-spacing:.02em}
+  h1 .g{color:var(--gold)}
+  .hero p.lead{margin-top:16px;color:var(--muted);font-size:15px;max-width:680px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+  .chips span{font-size:12.5px;color:var(--muted);border:1px solid var(--line2);border-radius:6px;padding:3px 11px;background:rgba(255,255,255,.02)}
+
+  /* Intro box */
+  .intro{
+    margin:32px 0 0;background:var(--panel);border:1px solid var(--line);
+    border-left:3px solid var(--gold);border-radius:12px;padding:20px 24px;
+  }
+  .intro h3{font-size:15px;color:var(--gold);margin-bottom:8px}
+  .intro p{font-size:14px;color:var(--muted)}
+  .intro p b{color:var(--text)}
+
+  /* Stats */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:28px 0 8px}
+  .sc{background:var(--panel);border:1px solid var(--line2);border-radius:12px;padding:16px 18px}
+  .sc .n{font-size:26px;font-weight:900;color:var(--gold);font-variant-numeric:tabular-nums}
+  .sc .l{font-size:12.5px;color:var(--muted);margin-top:2px}
+
+  /* Category */
+  .cat{margin:42px 0 0}
+  .cat-head{display:flex;align-items:center;gap:14px;margin-bottom:18px}
+  .cat-num{
+    width:42px;height:42px;border-radius:10px;flex:none;
+    display:flex;align-items:center;justify-content:center;
+    font-family:"Noto Serif SC",serif;font-size:20px;font-weight:900;color:var(--gold);
+    background:rgba(232,193,90,.08);border:1px solid var(--line);
+  }
+  .cat-head h2{font-family:"Noto Serif SC",serif;font-size:22px;font-weight:900}
+  .cat-head .cnt{font-size:12.5px;color:var(--dim);margin-left:auto}
+
+  /* Item grid */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .item{
+    background:var(--panel);border:1px solid var(--line2);border-radius:12px;padding:15px 17px;
+    transition:border-color .2s;
+  }
+  .item:hover{border-color:rgba(232,193,90,.4)}
+  .item-top{display:flex;align-items:baseline;gap:9px;margin-bottom:5px}
+  .item-no{font-size:12px;font-weight:700;color:var(--gold2);font-variant-numeric:tabular-nums;flex:none}
+  .item-name{font-size:15px;font-weight:700;color:var(--text)}
+  .item-how{font-size:13px;color:var(--muted);line-height:1.65}
+  .item-src{margin-top:8px;font-size:11.5px;color:var(--dim)}
+  .item-src a{color:var(--jade);text-decoration:none}
+  .item-src a:hover{text-decoration:underline}
+
+  /* Source videos */
+  .src-sec{margin-top:46px}
+  .src-list{display:flex;flex-direction:column;gap:9px}
+  .src{
+    display:flex;gap:14px;align-items:center;
+    background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:12px 16px;
+  }
+  .src .badge{flex:none;width:34px;height:34px;border-radius:8px;background:rgba(224,101,90,.12);
+    display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--red)}
+  .src .t{font-size:13.5px;font-weight:500;flex:1}
+  .src .d{font-size:11.5px;color:var(--dim);flex:none}
+  .src a{color:var(--jade);text-decoration:none;font-size:12px;flex:none}
+  .src a:hover{text-decoration:underline}
+
+  .warn{margin-top:36px;padding:14px 18px;border:1px solid rgba(232,193,90,.3);border-radius:10px;
+    background:rgba(232,193,90,.06);font-size:12.5px;color:#c9b98c}
+  footer{margin-top:30px;padding:24px 0 38px;border-top:1px solid var(--line2);
+    text-align:center;color:var(--dim);font-size:12px}
+
+  @media(max-width:760px){
+    .grid{grid-template-columns:1fr}
+    .stats{grid-template-columns:repeat(2,1fr)}
+    .src .d{display:none}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-in">
+    <div class="seal">网络热梗笔记 · 旅行邪修图鉴</div>
+    <h1>旅行<span class="g">邪修</span>物品与方法大全</h1>
+    <p class="lead">"邪修"出自修仙网文，原指旁门左道的修行者，网络语境里变成"用看似离谱却意外好用的野路子解决问题"。这份笔记从抖音热门视频中整理了旅行途中的 <b style="color:var(--gold)">51 件邪修物品 / 方法</b>，覆盖住酒店、收纳、路途、省钱、个护五大场景。</p>
+    <div class="chips">
+      <span>住酒店洁癖</span><span>行李收纳</span><span>路途通勤</span>
+      <span>穷游省钱</span><span>化妆个护</span><span>来源：抖音热门视频</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="intro">
+    <h3>什么是"旅行邪修"？</h3>
+    <p>它不讲究名门正派的"标准装备"，专挑<b>家里现成、几块钱甚至不要钱的东西</b>，换个场景就变成救命神器——浴帽套鞋、胶带缠轮子、风油精防晕车、奶茶袋当洗衣盆。核心信条是"<b>不管白猫黑猫，能解决问题就是好招</b>"。</p>
+  </div>
+
+  <div class="stats">
+    <div class="sc"><div class="n">51</div><div class="l">邪修物品 / 方法</div></div>
+    <div class="sc"><div class="n">5</div><div class="l">大场景分类</div></div>
+    <div class="sc"><div class="n">18</div><div class="l">抖音来源视频</div></div>
+    <div class="sc"><div class="n">2026.09</div><div class="l">采集整理时间</div></div>
+  </div>
+
+  <div id="app"></div>
+
+  <div class="src-sec">
+    <div class="cat-head">
+      <div class="cat-num">源</div>
+      <h2 class="serif">来源抖音视频</h2>
+      <span class="cnt">点击可跳转原视频</span>
+    </div>
+    <div class="src-list" id="srcList"></div>
+  </div>
+
+  <div class="warn">
+    提示：以上为网络热梗"邪修旅行"的民间野路子整理，部分方法（如保鲜膜/蓝膜包裹、自改电路等）请以安全和卫生为前提酌情参考，不构成任何出行建议。省钱类技巧注意甄别平台规则与活动真实性。
+  </div>
+
+</div>
+
+<footer>
+  旅行邪修物品与方法笔记 · 内容整理自抖音公开热门视频 · 原视频版权归各创作者所有
+</footer>
+
+<script>
+const cats = [
+  {
+    name: "住酒店 · 洁癖生存术",
+    icon: "宿",
+    items: [
+      ["露营帐篷住酒店","住酒店怕被偷拍，直接带个小露营帐篷，安全又安心。","国庆邪修式旅行"],
+      ["塑料袋套马桶","嫌酒店马桶脏，一个塑料袋/袋子直接套上搞定。","国庆邪修式旅行"],
+      ["洗脸巾包花洒水龙头","把花洒、水龙头用洗脸巾包上，既过滤又防隐藏摄像头。","国庆邪修式旅行"],
+      ["旧T恤爆改枕套","短袖直接套在枕头上，临时当枕套，翻身不跑。","老爸评测·假期技巧"],
+      ["一次性手套装牙具","牙刷、牙膏塞进一次性手套里打包，干净又省事。","国庆邪修式旅行"],
+      ["卫生巾贴插座","卫生巾贴在插座/插头上，一个顶三个，兼顾隔脏与防偷拍。","国庆邪修式旅行"],
+      ["牙科蓝膜隔脏","牙科专用防护蓝膜沿马桶贴一圈，还能贴洗漱台、开关、水龙头、遥控器、门把手。","跟着邪修住酒店"],
+      ["一次性马桶垫","独立包装、自带粘胶，往马桶一罩边缘全包住，隔绝细菌。","提升差旅幸福感"],
+      ["保鲜膜无菌包裹","重度洁癖随身带一卷保鲜膜，门把手、开关、水龙头、台面全裹一圈。","15个邪修级出行妙招"],
+      ["硬纸板替代房卡","多数酒店插卡取电不限卡，硬纸板/普通卡片插上，出门不断电、可充电通风。","15个邪修级出行妙招"],
+      ["热水瓶烘干袜子","矿泉水瓶接满热水套上湿袜子，利用余温几分钟烘干。","15个邪修级出行妙招"],
+      ["吹风机熨衬衫","衣服喷湿或用湿毛巾擦，开热风边拉直边吹干，去褶皱。","15个邪修级出行妙招"],
+      ["旧床单隔脏法","自带旧床单铺床面，用燕尾夹固定边角，低成本隔脏。","15个邪修级出行妙招"],
+      ["奶茶袋当洗衣盆","带防水内层的奶茶保温袋撑开，住酒店洗小件衣服不用盆。","11个邪修妙招"],
+      ["眼镜盒变手机支架","眼镜盒打开临时当手机支架，躺床看剧不用额外带支架。","11个邪修妙招"]
+    ]
+  },
+  {
+    name: "行李收纳 · 野路子",
+    icon: "收",
+    items: [
+      ["浴帽套鞋底","酒店一次性浴帽套在鞋底当鞋套，衣服和鞋底直接隔开。","11个邪修妙招"],
+      ["电工胶布缠轮子","出行前用绝缘胶带缠行李箱轮子，到家一撕不脏地板、防磨损。","11个邪修妙招"],
+      ["衣架互相套娃","酒店衣架不够，把衣架互相挂起来、加皮筋夹子，晾晒位翻倍。","11个邪修妙招"],
+      ["拉杆当晾衣杆","洗完袜子内衣，直接挂在行李箱拉杆上临时晾干。","11个邪修妙招"],
+      ["小夹子万能用","随手带几个小夹子：夹零食、夹窗帘漏光、夹充电线、晾袜子。","11个邪修妙招"],
+      ["大塑料袋装脏衣","穿过的衣服统一塞大塑料袋，回家整袋直接端去洗衣机。","11个邪修妙招"],
+      ["大小塑料袋常备","大号2个+小号几个，装湿泳衣、脏鞋、漏液洗护，应急万能。","11个邪修妙招"],
+      ["鞋套包鞋塞缝","一次性鞋套/保鲜袋四方包鞋，塞行李箱缝隙不浪费空间。","15个邪修级出行妙招"],
+      ["洗衣袋分装衣物","内外衣分袋装，回家脏衣连袋直接进洗衣机，省二次整理。","15个邪修级出行妙招"],
+      ["密封袋分装零碎","充电线、护肤品、常备药用密封保鲜袋分装，防水透明。","15个邪修级出行妙招"],
+      ["指套收纳贴身物","一次性手套剪开，一指套一件牙刷/化妆刷，干净隔离。","15个邪修级出行妙招"],
+      ["高铁清洁袋妙用","清洁袋当手机支架、装鞋隔脏、装内衣内裤。","旅行邪修大法"],
+      ["PP膜收纳化妆刷","一寸照PP膜底部剪小孔，把化妆刷怼进去独立收纳不打架。","8个懒人出行好物"],
+      ["牙线盒收纳","小物件用牙线盒装，卡子固定手链，一个人也能带。","老爸评测·假期技巧"]
+    ]
+  },
+  {
+    name: "路途通勤 · 舒适度",
+    icon: "途",
+    items: [
+      ["风油精创可贴防晕车","风油精滴在创可贴上，出门半小时贴手腕，无副作用防晕车。","11个邪修妙招"],
+      ["长袖打结当靠枕","长袖衣服袖口打结挂座椅靠背挂钩，托住头脸防歪头落枕。","15个邪修级出行妙招"],
+      ["塑料袋套小桌板","洁癖坐高铁，把塑料袋套在小桌板上再用酒精棉片擦。","15个邪修级出行妙招"],
+      ["垃圾袋变手机支架","车上标配折叠垃圾袋折叠塑形，变身稳固手机支架。","15个邪修级出行妙招"],
+      ["袋子挂座椅头枕","塑料袋夹在平板壳后挂头枕处，解放双手哄娃看剧。","15个邪修级出行妙招"]
+    ]
+  },
+  {
+    name: "省钱邪修 · 穷游",
+    icon: "省",
+    items: [
+      ["12306积分/盲盒票","用12306积分兑换免费火车票，或买9元火车盲盒、19元飞机盲盒。","邪修旅游省钱五技巧"],
+      ["过夜硬座省房费","选过夜火车硬座直达目的地，直接省下一晚住宿费。","邪修旅游省钱五技巧"],
+      ["回旋镖机票","出发地和目的地很近却买绕远中转的票，中转停留几十小时免费多玩一站。","邪修旅游太爽了"],
+      ["卡点买机票","航班选周二周三18点-凌晨最便宜；蹲各航司每月会员日官网购票。","穷游全攻略"],
+      ["住老城区/青旅","不住景区门口溢价房，住市中心地铁口或平价青旅，安全又划算。","背包客省钱窍门"],
+      ["团购返佣","旅行前在抖音发几条作品，再从自己视频下单团购套餐，省一笔佣金。","邪修旅游省钱五技巧"],
+      ["周二到周四出行","住宿机票避开周五六日高峰，工作日入住普遍便宜20%-40%。","穷游全攻略"]
+    ]
+  },
+  {
+    name: "化妆个护 · 极简",
+    icon: "妆",
+    items: [
+      ["一盘多用综合盘","眼影修容腮红三合一综合盘，自带小镜子和刷子，少带俩刷子。","旅游前邪修准备"],
+      ["双头口红","一支双头口红，轻松打造两种妆效。","旅游前邪修准备"],
+      ["眉笔染眉膏二合一","一支搞定眉毛，少带一件。","旅游前邪修准备"],
+      ["免胶睫毛","能带免胶款就少带一瓶胶水。","旅游前邪修准备"],
+      ["加厚洗脸巾","20×20cm大尺寸厚洗脸巾，一包6片，擦脸卸妆够用。","十一出行必备好物"],
+      ["可挂便携化妆镜","超薄小镜子可挂在行李箱上，化妆不占地。","十一出行必备好物"],
+      ["在家挤好分装","护发素、身体乳在家挤进分装小罐，到酒店反过来直接涂抹。","老爸评测·假期技巧"],
+      ["不锈钢冰霸杯","304不锈钢保温杯，出门放冰到晚上还冰，奶茶也能装。","外出旅行邪修好物"],
+      ["自吸水冰包","夏天户外必备，十块钱的自吸水冰包随时降温。","外出旅行邪修好物"],
+      ["纸扇子替代风扇","不带充电小风扇，折页纸扇塞包里，热了免费扇一扇。","全网最全旅行好物"],
+      ["折叠衣架","掰一下就能撑开，应对酒店民宿衣架不够。","全网最全旅行好物"]
+    ]
+  }
+];
+
+const vids = [
+  ["国庆邪修式旅行：安全省钱实用攻略","2025-09","https://www.iesdouyin.com/share/video/7552901149624487202"],
+  ["旅游前的一些邪修准备（化妆篇）","2026-07","https://www.iesdouyin.com/share/video/7666015929403486073"],
+  ["十一出行必备实用好物推荐","2025-09","https://www.iesdouyin.com/share/video/7555818855810092334"],
+  ["8个便携实用的懒人出行好物","2026-04","https://www.iesdouyin.com/share/video/7634066552900060794"],
+  ["出差旅游好物清单（消毒三件套等）","2026-08","https://www.iesdouyin.com/share/video/7672793096878296370"],
+  ["全网最全的旅行好物分享","2026-08","https://www.iesdouyin.com/share/video/7670118594566597029"],
+  ["提升差旅幸福感的实用出行好物","2024-01","https://www.iesdouyin.com/share/video/7327184675510734143"],
+  ["外出旅行必备邪修便携好物","2026-07","https://www.iesdouyin.com/share/video/7665983038728742002"],
+  ["旅行邪修大法：实用小技巧","2025-09","https://www.iesdouyin.com/share/video/7555341723954629942"],
+  ["假期出门这些技巧千万别错过","2026-04","https://www.iesdouyin.com/share/video/7624476148281462052"],
+  ["邪修年轻人的野路子生存学","2026-08","https://www.iesdouyin.com/share/video/7671987711091150132"],
+  ["省钱旅行邪修技巧合集（穷游经验）","2026-06","https://www.iesdouyin.com/share/video/7654796318400859401"],
+  ["邪修旅游省钱五大实用技巧","2025-11","https://www.iesdouyin.com/share/video/7575118573166455525"],
+  ["穷游全攻略：机票住宿餐饮省钱","2024-07","https://www.iesdouyin.com/share/video/7395489503407787304"],
+  ["教你一招，旅游省钱的野路子","2025-12","https://www.iesdouyin.com/share/video/7583158212447866164"],
+  ["跟着邪修住酒店：牙科蓝膜隔脏","2026-06","https://www.iesdouyin.com/share/video/7671987711091150132"],
+  ["邪修旅行转场（Insta360）","2026-04","https://www.iesdouyin.com/share/video/7626731910722555162"],
+  ["大疆 Osmo Nano 邪修拍摄神器","2026-06","https://www.iesdouyin.com/share/video/7655450888567426331"]
+];
+
+const app = document.getElementById("app");
+let n = 0;
+app.innerHTML = cats.map((c, ci) => `
+  <section class="cat">
+    <div class="cat-head">
+      <div class="cat-num serif">${c.icon}</div>
+      <h2>${c.name}</h2>
+      <span class="cnt">${c.items.length} 招</span>
+    </div>
+    <div class="grid">
+      ${c.items.map(([name, how, src]) => { n++; return `
+        <div class="item">
+          <div class="item-top"><span class="item-no">${String(n).padStart(2,"0")}</span><span class="item-name">${name}</span></div>
+          <div class="item-how">${how}</div>
+          <div class="item-src">出处：${src}</div>
+        </div>`}).join("")}
+    </div>
+  </section>`).join("");
+
+document.getElementById("srcList").innerHTML = vids.map((v, i) => `
+  <div class="src">
+    <div class="badge">${i+1}</div>
+    <div class="t">${v[0]}</div>
+    <div class="d">${v[1]}</div>
+    <a href="${v[2]}" target="_blank" rel="noopener noreferrer">观看 →</a>
+  </div>`).join("");
+</script>
+</body>
+</html>
