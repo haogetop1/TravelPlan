@@ -242,12 +242,28 @@ python scripts/xhs_collect.py 12       # 从第 13 个关键词断点续跑
 期间 `window` 会被销毁，此时 `page.evaluate(...)` 抛
 `Page.evaluate: Execution context was destroyed, most likely because the page was destroyed`。
 
-**解法**：`page.goto` 用 `try/except` 吞掉超时，紧接着在「evaluate 重试循环」里跑
-（每次 sleep 2-3s，最多 14 轮），并在循环开头检查 `"/website-login/captcha" in page.url`
-→ 命中即抛 `RuntimeError("CAPTCHA 拦截")`，让上层立即中止以免加重风控。
+**解法（唯一实现点：`xhs_collect_photos.py` 的 `eval_retry()`）**：
+`page.goto` 用 `try/except` 吞掉超时，紧接着所有 `page.evaluate` 都走 `eval_retry()`
+—— 每轮 sleep 2-3s、最多 14 轮，循环开头检查 `"/website-login/captcha" in page.url`
+→ 命中即抛 `RuntimeError`，让上层立即中止以免加重风控。
+**不要在调用点各写一套重试循环**：笔记页（`note_images`）同样会重定向，漏了它就变成
+「整篇图静默丢失」—— 日志只写「无原图」，看着像帖子本身的问题。
 
 单次 `evaluate` 看不到结果是 bug 不是限流。**这坑在采集时表现为「搜索失败」，
 但其实是脚本写法问题；老脚本因此白白触发账号安全验证。**
+
+**⚠️ 副本漂移（2026-09-17 复发根因）**：这坑修好过一次却仍复发 ——
+因为修复只落在某一个副本里，实际跑的那份（GitHub 仓库 / 项目目录）还是
+「单次 `evaluate`」的旧版。所以拿到任何一份 `xhs_collect_photos.py`，
+**先跑自检再采集**：
+
+```bash
+python xhs_collect_photos.py --selfcheck
+```
+
+它校验 `eval_retry()` 是否被 `search_cards` / `note_images` 共用、captcha 检查是否在、
+登录态 profile 是否避开真实浏览器目录。**FAIL 就是旧版，从本地技能目录重新复制**，
+别在旧版上打补丁。
 
 ⑫ **`id_token` 存在 ≠ 登录态有效，别拿它当唯一判据**（2026-09-11 实测）——
 复用一份 3 周前的 `xhs_profile` 时，cookie 看起来「很健康」：

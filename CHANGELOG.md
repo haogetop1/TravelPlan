@@ -2,6 +2,41 @@
 
 本仓库所有值得记录的变更。
 
+## [2026-09-17] · 踩坑⑪ 复发：evaluate 重试收敛成唯一实现 + 副本漂移自检
+
+### 🐛 复发：`search_cards()` 的 evaluate 重试循环「消失了」
+
+用户实测再次遇到 `Page.evaluate: Execution context was destroyed`
+（踩坑⑪：搜索页多跳重定向期间 window 被销毁）。
+
+**真因不是脚本又写错，而是副本漂移**：本地技能里的 `xhs_collect_photos.py` 早已修好
+（`search_cards` 有 14 轮重试循环 + captcha 检查），但 **GitHub 仓库那份还停在旧版** ——
+`search_cards()` 只有一次 `page.evaluate`。从仓库装的技能再跑，同一坑必然再踩一遍。
+
+### 🔧 修法：不是补一处循环，而是收敛成唯一实现
+
+新增 `eval_retry(page, js, arg, tries=14, label)`：captcha 检查 → evaluate →
+拿到真值即返回 → 否则 sleep 2-3s 重试，用尽后只记一条日志（不抛）。
+
+- `search_cards()` 改走 `eval_retry(page, SEARCH_JS, CARDS_PER_QUERY, ...)`
+- `note_images()` 也改走它 —— 这是**此前遗漏的第二处**：笔记页同样会重定向
+  （xsec_token 变体 / 404），单次 evaluate 抛的异常被上层 `except` 吞掉，
+  表现为「整篇笔记的图静默丢失」，日志只写「无原图」，看着像帖子本身的问题
+- 两段 JS 提升为模块常量 `SEARCH_JS` / `NOTE_JS`
+- 文档头写明：**所有 evaluate 一律走 `eval_retry()`，不要在调用点各写一套**
+
+### 🛡 新增 `--selfcheck`（专治副本漂移）
+
+```bash
+python xhs_collect_photos.py --selfcheck
+```
+
+校验 6 项：`eval_retry` 存在、`search_cards`/`note_images` 都调用它、captcha 检查在、
+profile 不指向真实浏览器目录、带 token 访问说明在。**FAIL 即旧版**，退出码 1。
+实测：修复后的本地副本 PASS；仓库旧副本连这个参数都不认（会直接进采集流程）。
+`xhs-humanized-collect/SKILL.md` 的踩坑⑪ 同步补上「先自检再采集」。
+
+
 ## [2026-09-12] · 地图四级降级 + PDF 改为用户自行打印 + README 补 key 申请
 
 同样出自青甘大环线项目复盘，以下是用户确定的**长期约定**（不是一次性偏好）。

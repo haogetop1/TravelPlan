@@ -14,6 +14,18 @@
 用法：
   python xhs_photo_collect.py                 # 全部景点
   python xhs_photo_collect.py qianlingshan qingyunshiji   # 只跑指定 slug
+  python xhs_photo_collect.py --selfcheck      # 副本漂移自检（见下）
+
+⚠️ 踩坑⑪ 的唯一实现点：`eval_retry()`
+--------------------------------------
+所有 `page.evaluate` **一律走 `eval_retry()`**，不要在调用点各写一套重试。
+搜索页与笔记页都会「多跳重定向」，期间 window 被销毁，单次 evaluate 必爆
+`Execution context was destroyed`。
+
+**副本漂移是 2026-09-17 复发的根因**：当时某个副本（仓库 / 项目目录）停在旧版，
+`search_cards()` 里只有单次 `evaluate`，于是同一坑又踩一遍 ——
+表现仍是「搜索失败」，实际是脚本写法问题。
+改完本文件请同步三处并跑 `--selfcheck`：本地技能 / GitHub 仓库 / 项目目录副本。
 """
 import os, sys, json, time, random, io, re, urllib.parse
 
@@ -90,33 +102,96 @@ def wait(a=1.4, b=3.2):
     time.sleep(random.uniform(a, b))
 
 
+# ---------------------------------------------------------------- 踩坑⑪ 防护
+
+EVAL_TRIES = 14              # evaluate 重试轮数（每轮 sleep 2-3s）
+CAPTCHA_PATH = "/website-login/captcha"
+
+# 搜索页卡片收割（配 eval_retry 使用）
+SEARCH_JS = """(lim) => {
+    const out = [];
+    document.querySelectorAll('section.note-item').forEach((sec, i) => {
+        if (i >= lim) return;
+        const a = sec.querySelector('a.cover') || sec.querySelector('a');
+        if (!a) return;
+        const href = a.getAttribute('href') || '';
+        const m = href.match(/\\/explore\\/([0-9a-f]{24})|\\/search_result\\/([0-9a-f]{24})/);
+        const nid = m ? (m[1] || m[2]) : '';
+        if (!nid) return;
+        const t = sec.querySelector('.title, span.title, a.title') ;
+        const au = sec.querySelector('.author, span.name, .name');
+        const lk = sec.querySelector('.like-wrapper .count, .count');
+        out.push({note_id: nid, href: href,
+                  title: t ? t.innerText.trim() : '',
+                  author: au ? au.innerText.trim().split('\\n')[0].trim() : '',
+                  likes: lk ? lk.innerText.trim() : ''});
+    });
+    return out;
+}"""
+
+# 笔记页 noteDetailMap 水合取值（配 eval_retry 使用）
+NOTE_JS = """() => {
+    try {
+        const dm = window.__INITIAL_STATE__.note.noteDetailMap;
+        for (const k of Object.keys(dm)) {
+            const n = dm[k] && dm[k].note;
+            if (n && (n.imageList || []).length) {
+                return {
+                    title: n.title || '',
+                    n: n.imageList.length,
+                    urls: n.imageList.map(i => i.urlDefault || i.urlPre
+                          || ((i.infoList || [])[0] || {}).url || '')
+                };
+            }
+        }
+    } catch (e) {}
+    return null;
+}"""
+
+
+def eval_retry(page, js, arg=None, tries=EVAL_TRIES, label="evaluate"):
+    """踩坑⑪ 的唯一实现：goto 之后所有 evaluate 都走这里。
+
+    为什么必须重试：搜索页 `/search_result/ → ?type=51 → 结果` 至少两跳，
+    笔记页也会跳（xsec_token 变体 / 404），跳转期间 window 被销毁，
+    此时 `page.evaluate` 抛
+    `Execution context was destroyed, most likely because the page was destroyed`。
+    单次调用看不到结果**是写法 bug、不是限流**。
+
+    · 返回第一个「真值」结果；一直拿不到则返回 None（不抛）
+    · 每轮开头检查 captcha，命中直接抛 RuntimeError，让上层立即中止（免加重风控）
+    · 重定向期的销毁异常被吞掉继续下一轮，只在全部用尽时记一条日志
+    """
+    last = ""
+    for i in range(tries):
+        if CAPTCHA_PATH in page.url:
+            raise RuntimeError("CAPTCHA 拦截（%s）" % label)
+        try:
+            out = page.evaluate(js) if arg is None else page.evaluate(js, arg)
+            if out:
+                return out
+        except Exception as e:
+            last = str(e)[:80]
+        if i < tries - 1:
+            time.sleep(random.uniform(2.0, 3.0))
+    if last:
+        log("      ! %s 重试 %d 轮未取到（最后异常：%s）" % (label, tries, last))
+    return None
+
+
 def search_cards(page, kw):
     """搜索关键词，返回 [{note_id, href, title, author, likes}]"""
     url = ("https://www.xiaohongshu.com/search_result?keyword=%s&source=web_explore_feed"
            % urllib.parse.quote(kw))
-    page.goto(url, wait_until="domcontentloaded", timeout=60000)
-    time.sleep(random.uniform(4.0, 6.0))
-    raw = page.evaluate("""(lim) => {
-        const out = [];
-        document.querySelectorAll('section.note-item').forEach((sec, i) => {
-            if (i >= lim) return;
-            const a = sec.querySelector('a.cover') || sec.querySelector('a');
-            if (!a) return;
-            const href = a.getAttribute('href') || '';
-            const m = href.match(/\\/explore\\/([0-9a-f]{24})|\\/search_result\\/([0-9a-f]{24})/);
-            const nid = m ? (m[1] || m[2]) : '';
-            if (!nid) return;
-            const t = sec.querySelector('.title, span.title, a.title') ;
-            const au = sec.querySelector('.author, span.name, .name');
-            const lk = sec.querySelector('.like-wrapper .count, .count');
-            out.push({note_id: nid, href: href,
-                      title: t ? t.innerText.trim() : '',
-                      author: au ? au.innerText.trim().split('\\n')[0].trim() : '',
-                      likes: lk ? lk.innerText.trim() : ''});
-        });
-        return out;
-    }""", CARDS_PER_QUERY)
-    # 去重
+    try:
+        page.goto(url, wait_until="domcontentloaded", timeout=60000)
+    except Exception:
+        pass
+    time.sleep(random.uniform(3.0, 5.0))
+
+    raw = eval_retry(page, SEARCH_JS, CARDS_PER_QUERY,
+                     label="搜索卡片「%s」" % kw) or []
+
     seen, cards = set(), []
     for c in raw:
         if c['note_id'] in seen:
@@ -127,35 +202,23 @@ def search_cards(page, kw):
 
 
 def note_images(page, href):
-    """带 token 访问笔记，轮询 noteDetailMap 水合后取原图 URL。"""
+    """带 token 访问笔记，轮询 noteDetailMap 水合后取原图 URL。
+
+    踩坑⑪在这里同样成立：笔记页也会重定向（xsec_token 变体 / 404），
+    单次 evaluate 抛的销毁异常会被上层 `except` 吞掉 →
+    **整篇笔记的图静默丢掉**（日志只写「无原图」，看着像帖子的问题）。
+    """
     full = href if href.startswith("http") else "https://www.xiaohongshu.com" + href
-    page.goto(full, wait_until="domcontentloaded", timeout=60000)
-    urls = []
-    for _ in range(12):
-        time.sleep(1.4)
-        data = page.evaluate("""() => {
-            try {
-                const dm = window.__INITIAL_STATE__.note.noteDetailMap;
-                for (const k of Object.keys(dm)) {
-                    const n = dm[k] && dm[k].note;
-                    if (n && (n.imageList || []).length) {
-                        return {
-                            title: n.title || '',
-                            n: n.imageList.length,
-                            urls: n.imageList.map(i => i.urlDefault || i.urlPre
-                                  || ((i.infoList || [])[0] || {}).url || '')
-                        };
-                    }
-                }
-            } catch (e) {}
-            return null;
-        }""")
-        if data and data.get('urls'):
-            urls = [u for u in data['urls'] if u]
-            return urls, data.get('title', '')
-        if page.url.startswith("https://www.xiaohongshu.com/404"):
-            return [], ''
-    return urls, ''
+    try:
+        page.goto(full, wait_until="domcontentloaded", timeout=60000)
+    except Exception:
+        pass
+    data = eval_retry(page, NOTE_JS, None, label="笔记水合 %s" % href[-12:])
+    if data and data.get("urls"):
+        return [u for u in data["urls"] if u], data.get("title", "")
+    if page.url.startswith("https://www.xiaohongshu.com/404"):
+        return [], ''
+    return [], ''
 
 
 def save_images(ctx, urls, folder):
@@ -182,8 +245,38 @@ def save_images(ctx, urls, folder):
     return saved
 
 
+def selfcheck():
+    """副本漂移自检：确认手上这份还是「修好的版本」。
+
+    2026-09-17 复发就是副本问题 —— 某个副本停在旧版、search_cards 只有单次
+    evaluate，跑起来必爆踩坑⑪，而表现只是「搜索失败」，很难看出是版本不一致。
+    任何副本（本地技能 / 仓库 / 项目目录）拿到手先跑这个。
+    """
+    src = open(os.path.abspath(__file__), encoding="utf-8").read()
+    checks = [
+        ("eval_retry() 复用函数存在", "def eval_retry(" in src),
+        ("search_cards 走 eval_retry", "eval_retry(page, SEARCH_JS" in src),
+        ("note_images 走 eval_retry", "eval_retry(page, NOTE_JS" in src),
+        ("captcha 命中即中止", CAPTCHA_PATH in src),
+        ("登录态 profile 不指向真实浏览器", "User Data" not in PROFILE),
+        ("裸 explore 直访已带 token 说明", "xsec_token" in src),
+    ]
+    bad = 0
+    for name, ok in checks:
+        print(("  OK   " if ok else "  FAIL ") + name)
+        bad += 0 if ok else 1
+    if bad:
+        print("SELFCHECK FAIL(%d) —— 本副本是旧版，跑采集会爆踩坑⑪（Execution context "
+              "destroyed），请从本地技能目录重新复制" % bad)
+    else:
+        print("SELFCHECK PASS —— 踩坑⑪ 防护完整")
+    return 0 if not bad else 1
+
+
 def main():
-    want = set(sys.argv[1:])
+    if "--selfcheck" in sys.argv[1:]:
+        raise SystemExit(selfcheck())
+    want = set(a for a in sys.argv[1:] if not a.startswith("--"))
     tasks = [t for t in TASKS if not want or t[0] in want]
     log("===== 开始采集：%d 个景点 =====" % len(tasks))
 
