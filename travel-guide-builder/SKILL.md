@@ -157,6 +157,25 @@ python scripts/build_guide_xlsx.py content.json output.xlsx
 
 `content.json` 结构见 `examples/guizhou_content_sample.json`（贵州 7 天 6 晚实例，可直接抄结构）。
 
+### xlsx 可选增强（都可选，不填按原样输出）
+
+| 键 | 作用 | 默认 |
+|---|---|---|
+| `fee_template.chart` | 在「费用明细」生成「总账单」**环形图**（DoughnutChart，金额绑 `total_col+1` 列、`showPercent=True`、holeSize 55） | 关 |
+| `fee_template.chart_title` / `chart_anchor` | 图标题 / 锚点单元格 | `总账单` / `N3` |
+| `fee_template.total_col` / `category_col` | 总计列 / 分类列（1-based） | 11 / 3 |
+| `map_img_col` + `map_img_dir` | 「景点地图」指定列**内嵌缩略图**（值 = 相对 `img_dir` 的文件名）；**缺图写 `[缺图] 文件名`**，不静默留空 | 关 |
+| `map_img_h` / `map_img_w` | 内嵌图尺寸（px） | 170 / 230 |
+
+**富文本**（无需配置）：`全部行程` sheet 自动把 `【景点】` 渲染成红色加粗、
+`〔交通〕/〔事项〕` 渲染成棕色加粗（`richify()`）。
+⚠️ 回读校验必须写 `load_workbook(path, rich_text=True)`，否则富文本会被还原成普通 `str`
+—— 会误判成「没生效」（2026-09-17 实测踩到）。
+
+**冻结窗格政策（不要擅自改）**：**只有「全部行程」用 `C2`**（用户明确要求：冻结 A、B 列 + 首行），
+「费用明细」保持原设计 `A2`，人均预算 / 物品清单 / 景点地图**不冻结**。
+2026-09-17 曾被擅自改成 5 个 sheet 全冻结（还把费用明细 A2 改成 C2），已回退。
+
 **回读校验是硬要求。** LLM 生成大段中文行程内容时会产生乱码
 （实测出现「黄樹果」「9 点点开」「枪枪安全套退退上下」这类无意义串），
 写入时看不出来，**必须重新打开文件逐格读回**。校验要点：
