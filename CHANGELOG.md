@@ -36,6 +36,27 @@ profile 不指向真实浏览器目录、带 token 访问说明在。**FAIL 即�
 实测：修复后的本地副本 PASS；仓库旧副本连这个参数都不认（会直接进采集流程）。
 `xhs-humanized-collect/SKILL.md` 的踩坑⑪ 同步补上「先自检再采集」。
 
+### 🔴 规则：所有平台抓取改走常驻会话（用户明确要求）
+
+**浏览器一关，会话 cookie 就带走了** —— 登录态含会话级 cookie（无过期时间、只驻内存），
+`close()` 之后不落盘，下次 launch 就是「未登录」；而**高频登录比抓取更容易触发风控**。
+`xhs_login.py` 原本「扫码成功即 `browser.close()`」，等于登录态当场作废。
+
+- 新增 **`xhs-humanized-collect/scripts/session_daemon.py`**：常驻浏览器服务
+  （`start` / `status` / `exec` / `stop`）。直接拉起 Playwright 自带 Chromium 并
+  **脱离父进程**（Windows `DETACHED_PROCESS`），脚本退出后浏览器继续活着并暴露 CDP 端口。
+  内置护栏：profile 指向真实 Chrome `User Data` 时**拒绝启动**（踩坑⑨）。
+- **`xhs_login.py`** 支持 `XHS_CDP` 常驻模式：连常驻浏览器扫码，结束**只关标签页**；
+  独立模式保留但会打印「会丢登录态」警告。
+- **`xhs_collect_photos.py`** 支持 `XHS_CDP`：`connect_over_cdp` 挂载，结束只关标签页。
+- 文档：`xhs-humanized-collect/SKILL.md` 新增「常驻会话模式（强制）」一节；
+  `scraping-playbook.md` 新增第七节（覆盖小红书 / 携程 / 天地图 / 高德 + 三条铁律）；
+  `travel-guide-builder/SKILL.md` 加硬约束。
+
+**实测**：start → `connect_over_cdp` 读 DOM → 只关标签页 → `status` 仍 RUNNING → stop 正常；
+另：中文 Windows 的 `tasklist`/`taskkill` 输出是 GBK，`text=True` 会抛
+UnicodeDecodeError 并把存活实例误判成 STALE —— 两处已改为字节匹配。
+
 
 ## [2026-09-12] · 地图四级降级 + PDF 改为用户自行打印 + README 补 key 申请
 

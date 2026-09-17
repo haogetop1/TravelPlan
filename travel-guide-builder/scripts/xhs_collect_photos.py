@@ -16,6 +16,21 @@
   python xhs_photo_collect.py qianlingshan qingyunshiji   # 只跑指定 slug
   python xhs_photo_collect.py --selfcheck      # 副本漂移自检（见下）
 
+会话模式（2026-09-17 用户要求：抓取一律常驻）
+--------------------------------------------
+**浏览器一关，会话 cookie 就带走了** —— 小红书登录态含会话级 cookie（无过期时间、
+只在内存），`ctx.close()` 后不会落盘，下次重新 launch 就是「已退出登录」，
+只能再扫码；而高频登录比抓取更容易触发风控。
+
+所以**推荐常驻模式**：先起服务，再让采集挂上去，结束时只关标签页、不关浏览器：
+
+```bash
+python xhs-humanized-collect/scripts/session_daemon.py start
+XHS_CDP=http://127.0.0.1:9222 python xhs_photo_collect.py
+```
+
+不设 `XHS_CDP` 时才走独立 launch + 关闭（调试用，日志会警告会丢登录态）。
+
 ⚠️ 踩坑⑪ 的唯一实现点：`eval_retry()`
 --------------------------------------
 所有 `page.evaluate` **一律走 `eval_retry()`**，不要在调用点各写一套重试。
@@ -281,16 +296,29 @@ def main():
     log("===== 开始采集：%d 个景点 =====" % len(tasks))
 
     with sync_playwright() as p:
-        ctx = p.chromium.launch_persistent_context(
-            PROFILE, headless=False,
-            viewport={"width": 1440, "height": 900},
-            args=["--disable-blink-features=AutomationControlled", "--no-sandbox"],
-        )
-        page = ctx.pages[0] if ctx.pages else ctx.new_page()
+        cdp = os.environ.get("XHS_CDP", "").strip()
+        if cdp:
+            # 常驻模式：挂在常驻浏览器上，结束只关标签页
+            br = p.chromium.connect_over_cdp(cdp)
+            ctx = br.contexts[0] if br.contexts else br.new_context()
+            page = ctx.new_page()
+            log("ATTACHED 常驻会话 %s（结束时不关浏览器）" % cdp)
+        else:
+            ctx = p.chromium.launch_persistent_context(
+                PROFILE, headless=False,
+                viewport={"width": 1440, "height": 900},
+                args=["--disable-blink-features=AutomationControlled", "--no-sandbox"],
+            )
+            page = ctx.pages[0] if ctx.pages else ctx.new_page()
+            log("!! 独立模式：本次结束会关闭浏览器 → 会话 cookie 丢失、下次要重新扫码。"
+                "建议改用 session_daemon.py + XHS_CDP")
         ck = {c["name"]: c["value"] for c in ctx.cookies()}
         if not ck.get("id_token"):
             log("!! 登录态失效，需重新扫码")
-            ctx.close()
+            if cdp:
+                page.close()
+            else:
+                ctx.close()
             return
 
         global_cache = {}   # note_id -> saved files（跨 slug 复用，避免重复下载）
@@ -344,7 +372,15 @@ def main():
                             files=[os.path.basename(x) for x in saved],
                         ), ensure_ascii=False) + "\n")
                 wait(1.6, 3.6)
-        ctx.close()
+        if cdp:
+            # 只关本脚本开的标签页；浏览器与登录态留给后续采集复用
+            try:
+                page.close()
+            except Exception:
+                pass
+            log("RESIDENT_KEPT_ALIVE 浏览器保持运行（未关闭）")
+        else:
+            ctx.close()
 
     # 汇总
     log("===== 完成 =====")

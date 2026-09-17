@@ -30,6 +30,35 @@ agent_created: true
 实测基准：23 词 × 5 帖 = 115 篇，耗时约 16 分钟，**全程零风控报错**。
 2026-09 贵州攻略实战：30 词 × 4 帖 = 119 篇（去重 116），图片 561 张，全程零风控。
 
+## 🔴 常驻会话模式（强制，2026-09-17 用户明确要求）
+
+**浏览器一关，会话 cookie 就带走了。** 站点登录态里含**会话级 cookie**
+（无过期时间、只驻内存），`browser.close()` / `ctx.close()` 之后**不会落盘**进
+profile 的 cookie 库；下次重新 `launch` 就是「已退出登录」，只能再扫码。
+而**高频扫码登录比采集本身更容易触发风控** —— 所以「每次采集都重新 launch」
+这个习惯本身就是风险源。
+
+规矩（**所有平台通用，不止小红书**——携程 / 天地图 / 高德同理）：
+
+1. **一次启动，常驻不退出**：`session_daemon.py start` 起一个长驻浏览器
+   （独立 profile + CDP 端口），**脚本进程退出后它继续活着**。
+2. **采集脚本挂上去，不自己 launch**：设 `XHS_CDP=http://127.0.0.1:9222`，
+   脚本内部走 `connect_over_cdp`；结束时**只关标签页，绝不 `browser.close()`**。
+3. **登录也在常驻会话里做**：`XHS_CDP=... python xhs_login.py` —— 扫完码浏览器不关，
+   登录态留在常驻进程里（独立模式扫完就关，等于白扫）。
+4. **同一批任务中途不要 stop**：`stop` = 下次要重新登录；只有跨天/跨平台收尾才重启。
+5. 只有调试才用独立模式，日志会明确警告「会丢登录态」。
+
+```bash
+python scripts/session_daemon.py start                        # 起常驻会话（一次）
+XHS_CDP=http://127.0.0.1:9222 python scripts/xhs_login.py     # 登录（会话内）
+XHS_CDP=http://127.0.0.1:9222 python ../travel-guide-builder/scripts/xhs_collect_photos.py
+python scripts/session_daemon.py status                        # 随时确认还活着
+```
+
+> 实现见 `scripts/session_daemon.py`（`start` / `status` / `exec` / `stop`）；
+> 它内置护栏：**profile 指向真实浏览器目录时直接拒绝启动**（踩坑⑨）。
+
 ## ⚠️ 踩坑⑥：取图千万别用 `.swiper-slide img` —— 那抓到的全是表情贴纸（2026-09 血泪）
 
 这条是本技能**最严重的静默失败**，之前产出的「N 百张配图」绝大多数是 48×48 的 emoji 贴纸，

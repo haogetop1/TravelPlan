@@ -217,3 +217,32 @@ input[placeholder*='搜索']  →  逐字 type() + 点 button[class*='search']
 
 **总路线图不要用地图服务截** —— 地图上画不出环线。用 ① 里小红书博主的**手绘环线图**
 （含分段里程，信息量最大），图注写「图源：小红书 · 手绘整理，实际导航以官方地图为准」。
+
+## 七、常驻会话模式（所有平台抓取的强制前提，2026-09-17 用户要求）
+
+**浏览器一关，会话 cookie 就带走了。** 登录态里的会话级 cookie（无过期时间、只驻内存）
+在 `browser.close()` / `ctx.close()` 后**不会落盘**，下次 launch 就是「未登录」——
+于是每次抓取都得重新登录，而**高频登录比抓取本身更容易触发风控**。
+
+所以抓价、抓地图、抓笔记**一律走常驻会话**：起一次服务，长期活着，采集脚本挂上去。
+
+```bash
+# 起常驻会话（独立 profile + CDP 端口；脚本退出后它继续运行）
+python <skills>/xhs-humanized-collect/scripts/session_daemon.py start
+export XHS_CDP=http://127.0.0.1:9222
+python <skills>/xhs-humanized-collect/scripts/session_daemon.py status   # 确认活着
+```
+
+| 平台 | 在常驻会话里怎么做 | 注意 |
+|---|---|---|
+| 小红书 | `XHS_CDP=... xhs_login.py` 会话内扫码；`XHS_CDP=... xhs_collect_photos.py` 采集 | 结束只关标签页 |
+| 携程机票 | 原生 Chrome + CDP 连常驻实例（裸 Playwright 会吃 `whaleguard block`） | 同上，绝不 close |
+| 天地图 / 高德 | 在常驻实例里逐景点截图，整批跑完再收尾 | 高德密集调用会被限流，间隔 ≥3s |
+| 神州租车 | 官网已不可抓 → 用公开价目并标注口径 | — |
+
+三条铁律：
+
+1. **不 launch + close，改成 attach + 留活**：脚本结束只关自己开的标签页。
+2. **同一批任务中途不 `stop`**：跨平台连续抓取时复用同一会话（抓完地图接着抓笔记）。
+3. **护栏**：常驻服务的 profile 必须落在独立目录；**指向真实 Chrome 的 `User Data`
+   一律拒绝启动** —— 踩坑⑨：会原地清空用户 cookie，不可恢复。
