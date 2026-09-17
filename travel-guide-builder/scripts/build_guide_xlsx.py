@@ -75,7 +75,14 @@ def col_letter(i):
     return s
 
 
-def put(ws, r, c, value, font=F_BODY, fill=None, align=WRAP, height=None, rich=False):
+def put(ws, r, c, value, font=F_BODY, fill=None, align=WRAP, height=None, rich=True):
+    """写单元格。
+
+    **富文本默认开启**（用户 2026-09-17 确认）：rich=True 时走 richify()，
+    文本里的 `【景点】` 渲成红色加粗、`〔交通〕/〔事项〕` 渲成棕色加粗，
+    所有 sheet 一体生效；确实要纯文本时才显式传 rich=False。
+    非字符串值（数字/空/已有 CellRichText）由 richify 原样放行。
+    """
     if rich:
         value = richify(value)
     cell = ws.cell(row=r, column=c, value=value)
@@ -134,11 +141,10 @@ def sheet_itinerary(wb, cfg):
             if c == 1:
                 put(ws, r, c, v, F_DAY, FILL_CREAM, WRAP_C)
             else:
-                put(ws, r, c, v, F_BODY, rich=True)
+                put(ws, r, c, v, F_BODY)      # put 默认已开富文本
         ws.row_dimensions[r].height = cfg.get("row_height", 300)
-    # ⚠️ 冻结窗格**只在这个 sheet 用 C2**（用户明确要求：冻结 A、B 列 + 首行）。
-    #    其它 sheet 一律保持原设计（费用明细 A2，人均预算/物品清单/景点地图不冻结），
-    #    不要"顺手"给每个 sheet 都加冻结 —— 2026-09-17 被擅自改成 5 个 sheet 全冻结，已回退。
+    # 冻结规则（用户 2026-09-17 明确）：全部行程 = 冻结首行 + A、B 列（= C2）。
+    # ⚠️ 这是全项目**唯一**需要 C2 的 sheet；不要"顺手"给其它 sheet 也加冻结。
     ws.freeze_panes = "C2"
     return ws
 
@@ -177,7 +183,7 @@ def sheet_budget(wb, cfg):
         c.alignment = Alignment(wrap_text=True, vertical="top")
         ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=ncol)
         ws.row_dimensions[r].height = 40
-    # 人均预算：不冻结（保持原设计）
+    # 冻结规则（用户 2026-09-17 明确）：人均预算**不冻结**
     return ws
 
 
@@ -213,8 +219,8 @@ def sheet_fee_template(wb, cfg):
             ws.add_chart(ch, cfg.get("chart_anchor", "N3"))
         except Exception as e:
             print("!! 图表生成失败:", str(e)[:80])
-    # 只冻结首行（原设计 A2）。⚠️ 不要改成 C2、也不要给别的 sheet 加冻结 ——
-    # 2026-09-17 曾被擅自把 5 个 sheet 全加上冻结（还把这里的 A2 改成 C2），已回退。
+    # 冻结规则（用户 2026-09-17 明确）：费用明细 = **只冻结首行**（A2）。
+    # 不要改成 C2（曾把 A、B 列也冻上），也不要给其它 sheet 加冻结。
     ws.freeze_panes = "A2"
     return ws
 
@@ -229,7 +235,7 @@ def sheet_packing(wb, rows, width=20):
                 put(ws, r, c, v, F_BODY, FILL_CREAM if r % 2 == 0 else None)
     ncol = max(len(r) for r in rows)
     set_widths(ws, [width] * ncol)
-    # 物品清单：不冻结（保持原设计）
+    # 冻结规则（用户 2026-09-17 明确）：物品清单**不冻结**
     return ws
 
 
@@ -258,7 +264,7 @@ def sheet_maps(wb, rows, widths=None, img_col=None, img_dir=None, img_h=170, img
                 put(ws, r, c, v, F_BODY, FILL_CREAM if r % 2 == 0 else None)
         ws.row_dimensions[r].height = (img_h * 0.78) if (r > 1 and img_col) else 30
     set_widths(ws, widths or [20] * max(len(r) for r in rows))
-    # 景点地图：不冻结（保持原设计）
+    # 冻结规则（用户 2026-09-17 明确）：景点地图**不冻结**
     return ws
 
 
