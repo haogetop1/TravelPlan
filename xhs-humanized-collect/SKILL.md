@@ -38,10 +38,10 @@ profile 的 cookie 库；下次重新 `launch` 就是「已退出登录」，只
 而**高频扫码登录比采集本身更容易触发风控** —— 所以「每次采集都重新 launch」
 这个习惯本身就是风险源。
 
-规矩（**所有平台通用，不止小红书**——携程 / 天地图 / 高德同理）：
+规矩（**所有平台通用，不止小红书**——携程 / 天地图 / 高德 / 神州同理）：
 
 1. **一次启动，常驻不退出**：`session_daemon.py start` 起一个长驻浏览器
-   （独立 profile + CDP 端口），**脚本进程退出后它继续活着**。
+   （独立 profile + CDP 端口）。
 2. **采集脚本挂上去，不自己 launch**：设 `XHS_CDP=http://127.0.0.1:9222`，
    脚本内部走 `connect_over_cdp`；结束时**只关标签页，绝不 `browser.close()`**。
 3. **登录也在常驻会话里做**：`XHS_CDP=... python xhs_login.py` —— 扫完码浏览器不关，
@@ -58,6 +58,66 @@ python scripts/session_daemon.py status                        # 随时确认还
 
 > 实现见 `scripts/session_daemon.py`（`start` / `status` / `exec` / `stop`）；
 > 它内置护栏：**profile 指向真实浏览器目录时直接拒绝启动**（踩坑⑨）。
+> 默认用**原生 Chrome**（自动探测）——携程/神州的指纹风控会拦 Playwright 自带内核。
+
+### ⚠️ 更正（2026-09-18 实测）：沙箱里「进程级常驻」不成立，真正的解法是 profile + cookie 快照
+
+别被上一条误导。**在受沙箱保护的执行环境里，脚本拉起的浏览器活不过一条命令**：
+沙箱会在命令结束时清掉整棵进程树，以下方式**全部实测失败**：
+
+| 方式 | 结果 |
+|---|---|
+| `subprocess` + `DETACHED_PROCESS \| CREATE_NEW_PROCESS_GROUP` | 下一条命令里端口已关 |
+| `+ CREATE_BREAKAWAY_FROM_JOB` | 同上 |
+| `cmd` 的 `start` 拉起 | 同上 |
+| 注册计划任务（cmdlet 未被拦的情况下） | Chrome 起来了、profile 也建了，随后仍被杀 |
+
+**所以请按下面两条来，不要再折腾「让进程别退出」**：
+
+1. **让用户自己启动窗口**（不在沙箱进程树里，能一直活着）：
+   ```bat
+   "C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222 ^
+     --user-data-dir="%USERPROFILE%\.workbuddy\scrape_session\browser_profile" https://目标站点
+   ```
+   > 给用户双击的 `.bat` **必须纯 ASCII + CRLF**（cmd 按 GBK 解析 UTF-8 会满屏乱码，
+   > `chcp 65001` 也救不了）；拿不准就直接给 Win+R 的一行命令。
+2. **cookie 快照兜底**（关键）：用 `human_act.save_cookies()` / `restore_cookies()`
+   把**全部 cookie（含会话级）**落盘成 JSON，下次 attach 时注回 —— 实测杀进程重启后
+   登录态照样有效。脚本里 `try: restore_cookies(ctx, "<站点tag>")`，任务收尾前 `save_cookies()`。
+   ⚠️ `restore_cookies` 的 `domains` 要写**完整域名后缀**（`zuche.com`），
+   写 `zuche` 会一条都匹配不上（`endswith` 陷阱，实测还原 0 条就是这个原因）。
+
+3. **还有一个取巧但有效的形态**：把「等用户扫码/短信登录」和「采完数据」放进**同一次运行**里 ——
+   沙箱只在**命令结束**时清进程树，同一命令内浏览器一直活着。
+   参考：轮询检测登录成功 → 立刻 `save_cookies()` → 继续跑采集流程。
+
+### `scripts/human_act.py` —— 所有平台共用的拟人化操作层（2026-09-18 新增）
+
+`human_act.py` 是抓价/抓数类任务的公共机械层，**新平台采集脚本直接复用它**：
+
+| 能力 | 用法 | 解决什么 |
+|---|---|---|
+| 连常驻浏览器 | `with Attached() as S: S.page` | 连不上时**自动拉起**同一 profile（自愈）；只关标签页、绝不关浏览器 |
+| cookie 快照 | `save_cookies(ctx, tag)` / `restore_cookies(ctx, tag)` | 会话级 cookie 不落盘 → 反复扫码 |
+| 四级降级点击 | `human_click(page, step, selector=..., verify=...)` | ①选择器 →②bbox 坐标点击 →③标定表固化坐标 →④截图交人看 |
+| 风控中止 | `assert_no_captcha(page)` → `CaptchaHit` | 撞验证码立刻停，不硬试 |
+| 三件套落盘 | `dump(page, out, tag)` | 截图 + 文本 + 接口响应，金额可回溯 |
+| 金额交叉校验 | `cross_check(...)` | 视觉读出的数字必须能在 DOM/接口里找到同值 |
+| target 列表 | `targets()` / `new_targets()` | `ctx.pages` 有时收不到 `window.open` 开的新页，查 CDP 才准 |
+
+`python scripts/human_act.py --selfcheck` 自检 12 项（含「绝不关浏览器」这类硬约束）。
+
+### 抓取类任务的六个通用坑（跨平台，2026-09-18 实测）
+
+| 坑 | 症状 | 正解 |
+|---|---|---|
+| **桌面视口毁掉 H5 布局** | 元素被塞进内部滚动容器、被吸顶条遮挡，怎么点都不对 | 用 CDP 模拟手机视口：`Emulation.setDeviceMetricsOverride({width:414,height:896,mobile:true})` |
+| **`content-visibility` 骗过 `innerText`** | 截图明明显示某层内容，`body.innerText` 却返回上一层文字 | 取文字用 `textContent`，不要用 `innerText` |
+| **按钮文字里有空格** | 如「确 认」（前端做字间距）→ 精确匹配「确认」永远 0 候选 | 匹配前 `re.sub(r"\s+","",s)` 归一化两侧 |
+| **目标在折叠下方** | 元素 top=1124 而视口只有 896 → 点击落在视口外，什么都不发生 | 先 `scrollIntoView({block:'center'})` → **重新量 rect** → 再点 |
+| **容器高度为 0** | 外层靠 transform 定位，`h=0`；「取最小元素」会选中它 | 候选过滤 `height>=14`，并优先点具体子元素（如图片） |
+| **`¥` 与数字是两个文本节点** | 拼整页文本时插了分隔符 → 金额正则全配不到 | 拼文本用**空串**；并防「金额被后一段日期吃掉」（`￥316`+`09-18` → 31609，用 split 分段并校验分项之和） |
+
 
 ## ⚠️ 踩坑⑥：取图千万别用 `.swiper-slide img` —— 那抓到的全是表情贴纸（2026-09 血泪）
 

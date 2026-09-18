@@ -246,3 +246,82 @@ python <skills>/xhs-humanized-collect/scripts/session_daemon.py status   # 确�
 2. **同一批任务中途不 `stop`**：跨平台连续抓取时复用同一会话（抓完地图接着抓笔记）。
 3. **护栏**：常驻服务的 profile 必须落在独立目录；**指向真实 Chrome 的 `User Data`
    一律拒绝启动** —— 踩坑⑨：会原地清空用户 cookie，不可恢复。
+
+## 八、神州租车 H5：取「含最低档保险的真实价」（2026-09-18 实测打通）
+
+### 四条铁律（用户亲测，缺一不可）
+
+1. **入口必须是** `https://m.zuche.com/#/rent?tabCode=GNZ`
+   PC 端 `www.zuche.com` 的「立即选车」会把完整表单参数带给 `app-download.do`
+   （把人往 App 引），**H5 才是能走完下单流程的入口**。
+2. **必须登录**，且 `m.zuche.com` 与 `www.zuche.com` 是**两套独立会话**：
+   - `m.zuche.com` 域：`CAR_UID` / `ENCRYPT_MEMBER_ID` / `LOGIN_MOBILE` → **全是会话级 cookie（expires=-1）**
+   - `www` 域：`szzcCooki` / `realName` → 持久
+   → 「在 PC 站登录了」**不等于** H5 已登录；H5 网关 `getUserInfo` 会回「用户不存在」。
+   → 登录态靠 **cookie 快照**保命：`human_act.save_cookies()/restore_cookies()`
+     （含会话级 cookie，实测 65-95 条，能跨浏览器重启复用）。
+3. **必须授权定位**。人工那步（点取消 → 提示用户授权 → 刷新）可用 CDP 直接替代：
+   `ctx.grant_permissions(["geolocation"], origin="https://m.zuche.com")` +
+   `ctx.set_geolocation({"latitude":.., "longitude":..})`。
+   未授权时页面显示「定位获取失败」、取车城市停在默认的北京。
+4. **必须点具体车型并勾最低档保险**：
+   车型列表的日租价 ≠ 真价（实测 ¥158/日均 → 订单页按日 148/168）。
+   保险默认**未选**，结算条的「全额」在勾选后会变（实测 456 → 556）。
+
+### 完整点击链（选择器 / 坐标可直接抄）
+
+| 步骤 | 目标 | 选择器 / 要点 |
+|---|---|---|
+| ① | 去订车 | `<a.am-button>`，坐标约 (207,327)；点它 → `#/rent/list` |
+| ② | 车型卡片 | ⚠️ **卡片几何中心是死区**，要点卡内的 **`img.car-img`**（约 (72,594)） |
+| ③ | 立即预订 | `<button class="reserve">`，约 (320,855) → 弹「租车选项」底部面板 |
+| ④ | 确 认 | `<a.am-button>`，约 (207,849)；⚠️ **文本是「确 认」，中间有空格**，比较前必须去空白 |
+| ⑤ | 勾最低档保险 | `.func-check-list` 里最后一格 **`.unchecked`**（「选择」行），约 (153,448) |
+| ⑥ | 读真价 | 结算条 `全额 ￥xxx` + 出现 `已选择：尊享服务` |
+
+保险对照表结构（点对地方的关键）：
+
+```
+.func-table
+  ├ .func-name-list        左列标签：.. / 价格 / 选择
+  └ .func-check-list ×N    每个保险档一列（尊享服务 / 尊享百万服务 / 尊享驾乘守护 / 全程无忧 / 全程无忧升级版）
+       ├ .head-name        档位名
+       ├ .include/.exclude 各项保障含不含
+       ├ .price            价格
+       └ .unchecked / .checked  ← 「选择」行的勾选格，就点这里
+```
+
+### 七个坑（都踩过，别再走一遍）
+
+| 坑 | 症状 | 正解 |
+|---|---|---|
+| **桌面视口毁掉 H5 布局** | 车型卡片被塞进高 230px 的内部滚动容器、被 `.dept-info` 吸顶层遮挡，怎么点都不对 | 用 CDP 模拟手机视口：`Emulation.setDeviceMetricsOverride({width:414,height:896,mobile:true})` |
+| **`content-visibility` 骗过 `innerText`** | 截图明明显示「车型详情」页，`document.body.innerText` 却返回列表页文本；按文本找「日租价/确认」全部找不到 | 取文字一律用 `textContent`（或遍历文本节点），**不要用 `innerText`** |
+| **`确 认` 中间有空格** | 精确匹配「确认」永远 0 候选，误判成「面板没弹出来」 | 匹配前 `re.sub(r"\s+","",s)` 归一化两侧 |
+| **勾选格在折叠下方** | `.unchecked` 原 top=1124，视口只有 896 → 点击落在视口外，金额不变 | 先 `scrollIntoView({block:'center'})` → **重新量 rect** → 再点 |
+| **目标元素高度为 0** | 外层 `.vehicle-wrap` 靠 transform 定位，`h=0`；「取最小元素」会选中它，等于点在缝隙 | 候选过滤 `height>=14`；车图这类要点具体子元素 |
+| **`¥` 与数字是两个文本节点** | 拼整页文本时若插分隔符（`' | '`），金额正则全配不到 | 拼文本用**空串**；元素级则用 `el.textContent` |
+| **金额被下一段日期"吃掉"** | `￥316` + `09-18周五` 拼成 `￥31609-18周五`，正则贪婪抓成 **31609** | 用 `split` 按日期切段再取紧跟金额；或加「后跟日期」的前瞻。**并校验：按日租金之和 == 车辆租赁及服务费**（148+168=316 ✓） |
+
+### 沙箱「常驻」的最终结论
+
+进程级常驻**在本机不成立**：`DETACHED_PROCESS`、`CREATE_BREAKAWAY_FROM_JOB`、
+`cmd /c start`、计划任务（注册计划任务的 cmdlet 没被拦、但进程照样被杀）**全部实测失败**。
+可行组合只有两条：
+
+1. **用户自己启动的窗口**（Win+R 一行 chrome 命令 + `--remote-debugging-port`），脚本 attach 上去；
+2. **cookie 快照**：把登录态（含会话级 cookie）落盘，下次 attach 时注回。
+
+还有一个取巧但有效的形态：**把「等用户短信登录」和「走完采集流程」放在同一次运行里** ——
+沙箱只在**命令结束**时清进程树，同一命令内浏览器一直活着。参考实现：
+`青甘大环线_v3/prices/_zuche_auto.py`（轮询检测登录成功 → 立刻落 cookie 快照 → 继续走流程）。
+
+### 参考实现
+
+- 采集器：`青甘大环线_v3/prices/zuche_h5_quote.py`（全流程 + 结构化 JSON 输出）
+- 机械层：`xhs-humanized-collect/scripts/human_act.py`（cookie 快照 / targets / 坐标点击降级）
+
+### 安全边界（写死在脚本里）
+
+**只读价**：走到订单确认页勾保险读数字为止，**绝不点「确认订单 / 提交订单 / 去支付」**。
+脚本里用 `FORBID` 词表拦住这些候选。

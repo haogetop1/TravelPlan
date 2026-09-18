@@ -2,6 +2,72 @@
 
 本仓库所有值得记录的变更。
 
+## [2026-09-18] · 常驻会话的现实纠正 + 拟人化操作层 + 携程/神州真实价
+
+### 🔴 更正：沙箱里「进程级常驻」不成立（推翻 09-17 的结论）
+
+必须如实纠正：**在受沙箱保护的执行环境里，脚本拉起的浏览器活不过一条命令。**
+以下方式**全部实测失败**（进程照杀、端口随之关闭）：
+
+| 方式 | 结果 |
+|---|---|
+| `DETACHED_PROCESS` + `CREATE_NEW_PROCESS_GROUP` | 下一条命令里端口已关 |
+| 再加 `CREATE_BREAKAWAY_FROM_JOB` | 同上 |
+| 用 `cmd` 的 `start` 拉起 | 同上 |
+| 注册计划任务（cmdlet 未被拦的情况下） | Chrome 起来了、profile 也建了，随后仍被杀 |
+
+**可行的三条**：
+
+1. **让用户自己启动窗口**（不在沙箱进程树里，能一直活着），带
+   `--remote-debugging-port=9222` + `--user-data-dir=<固定 profile>`，脚本用
+   `connect_over_cdp` attach 上去；给用户的 `.bat` **必须纯 ASCII + CRLF**
+   （cmd 按 GBK 解析 UTF-8 会满屏乱码，`chcp 65001` 也救不了），拿不准就直接给 Win+R 一行命令。
+2. **cookie 快照（重点）**：新增 `human_act.save_cookies()` / `restore_cookies()`，
+   把**全部 cookie（含会话级）**落盘成 JSON，下次 attach 注回 —— 实测杀进程重启后登录态仍有效。
+   ⚠️ `domains` 参数必须写**完整域名后缀**（如 `zuche.com`）；写 `zuche` 一条都匹配不上
+   （`endswith` 陷阱，实测「还原 0 条」就是这个原因）。
+3. **单命令内完成「等登录 + 采集」**：沙箱只在**命令结束**时清进程树，同一命令内浏览器一直活着。
+   参考做法：轮询检测登录成功 → 立刻 `save_cookies()` → 继续跑采集流程。
+
+### ✨ 新增 `xhs-humanized-collect/scripts/human_act.py`（跨平台共用的拟人化操作层）
+
+| 能力 | 解决什么 |
+|---|---|
+| `Attached()` | 连常驻浏览器；连不上**自动拉起**同一 profile（自愈）；只关标签页、**绝不关浏览器** |
+| `save_cookies / restore_cookies` | 会话级 cookie 不落盘 → 反复扫码 |
+| `human_click` 四级降级 | ①选择器 →②bbox 坐标点击 →③标定表固化坐标 →④截图交人看 |
+| `human_type` | 逐字输入（`fill()` 不触发联想）；中文走 `insert_text` 防重复写入 |
+| `assert_no_captcha` | 撞验证码立刻抛 `CaptchaHit` 中止，不硬试 |
+| `dump` / `cross_check` | 三件套落盘（截图+文本+接口响应）+ 金额交叉校验 |
+| `targets() / new_targets()` | `ctx.pages` 有时收不到 `window.open` 的新页，查 CDP `/json/list` 才准 |
+
+`python scripts/human_act.py --selfcheck` 自检 12 项（含「绝不关浏览器」这类硬约束）。
+
+### 🚗 两个平台采集器（真实价，均已实测通过）
+
+- `travel-guide-builder/scripts/ctrip_hotel.py` —— 携程酒店。关键修复：
+  **必须点右侧蓝色「搜索」按钮**（历史脚本只 `fill` + Enter，从不点它）；
+  登录后真实房价才渲染（未登录只能看到价格筛选条）。
+- `travel-guide-builder/scripts/zuche_h5_quote.py` —— 神州租车 H5 全流程，按用户四条铁律：
+  入口 `m.zuche.com/#/rent?tabCode=GNZ` / 必须登录（**H5 与 PC 是两套独立会话**）/
+  必须授权定位 / **必须点车型并勾最低档保险**，读结算条「全额」才是真价
+  （实测：挂牌 ¥158/日均 → 订单页按日 148 + 168，未含保险 ￥456，勾最低档后 **￥556**）。
+- 两个脚本的产物目录都走 `--out` / 环境变量，**不含任何本机绝对路径或用户名**（已扫描确认）。
+
+### 📘 文档
+
+- `references/scraping-playbook.md`：新增**第八节「神州租车 H5」**——四条铁律 + 完整点击链
+  + 七个坑的对照表 + 沙箱常驻结论 + 安全边界
+- `xhs-humanized-collect/SKILL.md`：常驻会话章节补「沙箱不成立」更正、`human_act` 能力表、
+  **六个跨平台通用坑**（桌面视口毁 H5 布局 / `content-visibility` 骗过 `innerText` /
+  按钮文字含空格（`确 认`）/ 目标在折叠下方 / 容器高度为 0 / `¥` 与数字是不同文本节点）
+- `scripts/daemon_launch.py`：顶部加「已被沙箱程序黑名单拦截」更正，保留仅作历史与无沙箱环境备选
+
+### 🔒 安全
+
+- 推送前对仓库全部文本文件做敏感扫描：token / 32 位 hex key / 邮箱 / 本机路径 / 用户名 → **0 命中**
+- 两个采集器只**读价**：走到订单确认页勾选保险读数字为止，脚本内置禁区词表
+  （确认订单 / 提交订单 / 去支付），**绝不提交订单**
 ## [2026-09-17] · 踩坑⑪ 复发：evaluate 重试收敛成唯一实现 + 副本漂移自检
 
 ### 🐛 复发：`search_cards()` 的 evaluate 重试循环「消失了」

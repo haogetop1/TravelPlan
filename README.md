@@ -1,7 +1,7 @@
 # TravelPlan
 Use AI tools to generate road books and travel guides — extremely detailed. Data comes from Xiaohongshu (RED), Trip.com (Ctrip), and China Auto Rental (Shenzhou Zuche). Output files: Excel workbook, illustrated road-book HTML (single-file export too) and two PPT decks. Scraping scripts are pre-built / embedded.
 
-> **🆕 Latest (2026-09-12)** — **PDF is no longer generated automatically**: deliver the HTML and let
+> **🆕 Latest (2026-09-18)** — session residency corrected: process-level residency is **impossible under a sandbox**, so the fix is **cookie snapshots** (session cookies included, survives browser restarts) plus a shared human-paced action layer (`human_act.py`: 4-tier click fallback, captcha abort, amount cross-check). Two new platform collectors: **Ctrip hotels** and **Shenzhou Zuche H5** (real total incl. the cheapest insurance tier). See [CHANGELOG.md](CHANGELOG.md).
 > the user print "Save as PDF" themselves (A4 / portrait / 1 page per sheet / ☑ background graphics),
 > which removes a whole class of renderer drift. Maps now follow an explicit **four-tier fallback**
 > (① Xiaohongshu spot guide map, verified → ② Tianditu → ③ Amap static-map API → ④ other sources),
