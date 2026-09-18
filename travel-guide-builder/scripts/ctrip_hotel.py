@@ -35,13 +35,30 @@ import sys
 import time
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 
-# human_act.py 住在兄弟技能 xhs-humanized-collect/scripts/ 下（两个技能装在同一父目录）。
-# 不写绝对路径：换机器/换用户名才不会失效。可用 XHS_SKILL_SCRIPTS 覆盖。
+# ── 找到兄弟技能 xhs-humanized-collect/scripts/（human_act / platform_compat 住那儿）──
+# 不写任何本机绝对路径：优先按「两个技能并列安装」这个布局推（对任何 skills 根目录都成立），
+# 再退回各宿主平台的技能目录。可用 XHS_SKILL_SCRIPTS / AGENT_SKILLS_DIR 显式覆盖。
+# 权威候选表见 platform_compat.skills_roots()。
 _HERE = os.path.dirname(os.path.abspath(__file__))
-SKILL_SCRIPTS = os.environ.get("XHS_SKILL_SCRIPTS") or os.path.normpath(
-    os.path.join(_HERE, "..", "..", "xhs-humanized-collect", "scripts"))
-if os.path.isdir(SKILL_SCRIPTS) and SKILL_SCRIPTS not in sys.path:
-    sys.path.insert(0, SKILL_SCRIPTS)
+_SKILLS_ROOT = os.path.dirname(os.path.dirname(_HERE))          # <skills_root>
+_HOME = os.path.expanduser("~")
+SKILL_SCRIPTS_CANDS = [
+    os.environ.get("XHS_SKILL_SCRIPTS", ""),
+    os.environ.get("AGENT_SKILLS_DIR", ""),
+    os.path.join(_SKILLS_ROOT, "xhs-humanized-collect", "scripts"),      # 并列安装
+    os.path.join(_HERE, os.pardir, os.pardir, "xhs-humanized-collect", "scripts"),
+    os.path.join(_HOME, ".workbuddy", "skills", "xhs-humanized-collect", "scripts"),
+    os.path.join(_HOME, ".claude", "skills", "xhs-humanized-collect", "scripts"),
+    os.path.join(os.environ.get("LOCALAPPDATA") or _HOME,
+                 "agent-skills", "skills", "xhs-humanized-collect", "scripts"),
+]
+SKILL_SCRIPTS = ""
+for _c in SKILL_SCRIPTS_CANDS:
+    if _c and os.path.isdir(_c):
+        SKILL_SCRIPTS = os.path.abspath(_c)
+        if SKILL_SCRIPTS not in sys.path:
+            sys.path.insert(0, SKILL_SCRIPTS)
+        break
 
 try:
     from human_act import (Attached, CaptchaHit, NeedVision, NetLog,  # noqa: E402
@@ -49,9 +66,11 @@ try:
                            human_type, load_calib, prices_in, viewport)
 except ImportError as e:
     raise SystemExit(
-        "找不到 human_act.py（%s）\n  请确认 xhs-humanized-collect 技能与 travel-guide-builder "
-        "装在同一目录，或设置 XHS_SKILL_SCRIPTS 指向它的 scripts/ 目录。\n  原始错误：%s"
-        % (SKILL_SCRIPTS, e))
+        "找不到 human_act.py。\n"
+        "  两个技能（travel-guide-builder / xhs-humanized-collect）必须装在**同一个**\n"
+        "  skills 根目录下；或把 XHS_SKILL_SCRIPTS 指向 xhs-humanized-collect/scripts。\n"
+        "已尝试：\n    %s\n  原始错误：%s"
+        % ("\n    ".join(x for x in SKILL_SCRIPTS_CANDS if x), e))
 
 # 每个逻辑步骤的候选选择器 —— **列表顺序即优先级**。
 # ⚠️ 不要用逗号拼成一个选择器：那是并集，`.first` 按 DOM 顺序取。

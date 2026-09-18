@@ -24,8 +24,34 @@
 import sys, time, json, os
 from playwright.sync_api import sync_playwright
 
+# 宿主平台兼容层（同目录）：会话目录不再绑死 WorkBuddy 的 `.workbuddy` 约定。
+try:
+    import platform_compat as PC
+except Exception:                                        # pragma: no cover
+    PC = None
+
+
+def _base_dir():
+    """登录态放哪儿。
+
+    优先级：`XHS_DIR`（显式） > 旧的「技能目录旁的 xhs_profile」（已存在就沿用，
+    避免老用户掉登录态） > 会话目录（与其它平台抓取共用，见 platform_compat）。
+    默认**不再写进技能目录** —— 技能目录是安装物，被写脏后会跟着同步进公开仓库。
+    """
+    env = os.environ.get("XHS_DIR")
+    if env:
+        return env
+    legacy = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if os.path.isdir(os.path.join(legacy, "xhs_profile")):
+        return legacy
+    if PC:
+        return PC.session_dir()
+    return os.path.join(os.path.expanduser("~"), ".local", "share",
+                        "agent-scrape-session")
+
+
 # ===== 配置区（按需修改）=====
-BASE_DIR = os.environ.get("XHS_DIR") or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = _base_dir()
 PROFILE = os.path.join(BASE_DIR, "xhs_profile")
 COOKIES = os.path.join(BASE_DIR, "xhs_cookies.json")
 HOME = "https://www.xiaohongshu.com"

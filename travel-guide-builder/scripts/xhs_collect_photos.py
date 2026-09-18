@@ -50,31 +50,57 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 
 
 def _find_profile():
-    """定位小红书登录态 profile。
+    """定位小红书登录态 profile（按候选顺序取第一个存在的）。
 
-    优先级：环境变量 XHS_PROFILE → 从当前目录向上找 <workspace>/.workbuddy/xhs_qr_profile
-    → 兜底 ~/.workbuddy/xhs_qr_profile。
-    不要写死绝对路径——那既会在别人机器上直接失效，也会把本机用户名泄进公开仓库。
+    为什么是一串候选而不是一个固定位置：登录态要能在**各宿主平台**下复用，
+    同时**不能让老用户掉登录态**。顺序：
+      1. `XHS_PROFILE`                      显式指定（最高优先）
+      2. 从当前目录向上找 `<workspace>/.workbuddy/xhs_qr_profile`   ← 历史约定，保留
+      3. `<会话目录>/xhs_profile`             ← 新约定，与其它平台抓取共用
+         （会话目录见 platform_compat.session_dir）
+      4. `%LOCALAPPDATA%\\agent-skills\\xhs_profile` 等平台中立位置
+      5. `~/.workbuddy/xhs_qr_profile`       兜底
+
+    不写死绝对路径 —— 那既会在别人机器上直接失效，也会把本机用户名泄进公开仓库。
     """
     env = os.environ.get("XHS_PROFILE")
     if env:
         return env
+
+    cands = []
     cur = os.path.abspath(os.getcwd())
-    while True:
-        cand = os.path.join(cur, ".workbuddy", "xhs_qr_profile")
-        if os.path.isdir(cand):
-            return cand
+    while True:                                    # 2) 历史约定
+        cands.append(os.path.join(cur, ".workbuddy", "xhs_qr_profile"))
         parent = os.path.dirname(cur)
         if parent == cur:
             break
         cur = parent
-    return os.path.join(os.path.expanduser("~"), ".workbuddy", "xhs_qr_profile")
+
+    home = os.path.expanduser("~")
+    try:                                           # 3) 共用会话目录
+        sys.path.insert(0, BASE)
+        import platform_compat as _PC              # noqa: E402
+        cands.append(os.path.join(_PC.session_dir(), "xhs_profile"))
+        cands.append(os.path.join(_PC.default_skills_home(), "xhs_profile"))
+    except Exception:
+        cands.append(os.path.join(home, ".local", "share",
+                                  "agent-scrape-session", "xhs_profile"))
+    cands.append(os.path.join(home, ".workbuddy", "xhs_qr_profile"))   # 5) 兜底
+
+    for c in cands:
+        if c and os.path.isdir(c):
+            return c
+    return cands[-1]
 
 
 PROFILE = _find_profile()
-OUT = os.path.join(BASE, "roadbook", "_raw", "photos")
-LOG = os.path.join(BASE, "roadbook", "_raw", "_photos.log")
-META = os.path.join(BASE, "roadbook", "_raw", "_photos.jsonl")
+
+# ⚠️ 采集产物**不要写进技能目录**：技能目录是「安装物」，被写脏后会跟着同步进
+# 公开仓库（2026-09-18 发现）。改到当前工作目录下，并支持环境变量覆盖。
+_RAW = os.environ.get("XHS_PHOTOS_OUT") or os.path.join(os.getcwd(), "roadbook", "_raw")
+OUT = os.path.join(_RAW, "photos")
+LOG = os.path.join(_RAW, "_photos.log")
+META = os.path.join(_RAW, "_photos.jsonl")
 os.makedirs(OUT, exist_ok=True)
 
 from PIL import Image

@@ -30,24 +30,35 @@ import re
 import sys
 import time
 
-# human_act.py 在兄弟技能 xhs-humanized-collect/scripts/ 下。
-# 逐个候选目录找，找到哪个含 human_act.py 就用哪个 —— 这样脚本放在
-# 技能目录里、还是放在项目目录里，都能跑（不写死本机绝对路径）。
+# ── 找到兄弟技能 xhs-humanized-collect/scripts/（human_act / platform_compat 住那儿）──
+# 逐候选目录找，命中含 human_act.py 的即用 —— 于是脚本放在技能目录里、
+# 还是放在项目目录里都能跑，且**不写死任何本机绝对路径**（否则换机器/换用户名即失效，
+# 还会把本机用户名泄进公开仓库）。权威候选表见 platform_compat.skills_roots()。
 _HERE = os.path.dirname(os.path.abspath(__file__))
-_CANDS = [
+_SKILLS_ROOT = os.path.dirname(os.path.dirname(_HERE))       # 并列安装时的 <skills_root>
+_HOME = os.path.expanduser("~")
+CANDS = [
     os.environ.get("XHS_SKILL_SCRIPTS", ""),
-    os.path.normpath(os.path.join(_HERE, "..", "..", "xhs-humanized-collect", "scripts")),
-    os.path.normpath(os.path.join(_HERE, "..", "..", "..", "..",
-                                  ".workbuddy", "skills", "xhs-humanized-collect", "scripts")),
-    os.path.expanduser("~/.workbuddy/skills/xhs-humanized-collect/scripts"),
+    os.environ.get("AGENT_SKILLS_DIR", ""),
+    os.path.join(_SKILLS_ROOT, "xhs-humanized-collect", "scripts"),
+    os.path.join(_HERE, os.pardir, os.pardir, "xhs-humanized-collect", "scripts"),
+    os.path.join(_HERE, os.pardir, os.pardir, os.pardir, os.pardir,
+                 ".workbuddy", "skills", "xhs-humanized-collect", "scripts"),
+    os.path.join(_HOME, ".workbuddy", "skills", "xhs-humanized-collect", "scripts"),
+    os.path.join(_HOME, ".claude", "skills", "xhs-humanized-collect", "scripts"),
+    os.path.join(os.environ.get("LOCALAPPDATA") or _HOME,
+                 "agent-skills", "skills", "xhs-humanized-collect", "scripts"),
 ]
-for _p in _CANDS:
+for _p in CANDS:
     if _p and os.path.isfile(os.path.join(_p, "human_act.py")):
-        sys.path.insert(0, _p)
+        sys.path.insert(0, os.path.abspath(_p))
         break
 else:
-    raise SystemExit("找不到 human_act.py；请设置 XHS_SKILL_SCRIPTS 指向 "
-                     "xhs-humanized-collect/scripts/")
+    raise SystemExit(
+        "找不到 human_act.py。\n"
+        "  两个技能（travel-guide-builder / xhs-humanized-collect）必须装在**同一个**\n"
+        "  skills 根目录下；或把 XHS_SKILL_SCRIPTS 指向 xhs-humanized-collect/scripts。\n"
+        "已尝试：\n    %s" % "\n    ".join(x for x in CANDS if x))
 
 from human_act import (Attached, NetLog, assert_no_captcha,  # noqa: E402
                        restore_cookies, save_cookies)

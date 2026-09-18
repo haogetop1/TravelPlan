@@ -6,6 +6,24 @@ agent_created: true
 
 # 旅游攻略表格生成
 
+## 宿主平台（Windows · 各 agent 平台通用）
+
+本技能**不绑定具体 agent 平台**：
+
+- `SKILL.md` 遵循 Agent Skills 规范（frontmatter 只需 `name` + `description`）
+  → WorkBuddy / CodeBuddy / Claude Code 等可直接自动发现；
+- 不认 `SKILL.md` 的平台（Codex CLI / Cursor / Gemini CLI / Windsurf / 其它读
+  `AGENTS.md` 的工具）由仓库根的 `AGENTS.md` 与 `python install.py --target <平台>`
+  生成的入口文件接管。
+
+**平台差异全部收敛在一处**：`xhs-humanized-collect/scripts/platform_compat.py`
+（原生浏览器探测、会话目录、进程管理、技能目录发现、各宿主安装目标）。
+换平台只改它，不要在各脚本里各写一套。
+自检：`python <技能根>/xhs-humanized-collect/scripts/platform_compat.py --selfcheck`。
+
+环境：**Windows 10/11** + Python 3.10+（`py -3`）；需要**原生 Chrome**
+（Playwright 自带内核会被携程/神州的风控拦）。
+
 ## 何时用
 
 用户要一份**能直接照着出行的行程表**，而不是一篇散文式攻略。典型信号：
@@ -113,7 +131,8 @@ D / E / H / I 四列都适用。判定有**双重保险**：即使写成 `【】
 ④ 组装内容   → content.json
 ⑤ 生成 xlsx  → scripts/build_guide_xlsx.py
 ⑥ 回读校验   → 逐格检查，重点查中文乱码         （必做，不可省）
-⑦ present_files 交付
+⑦ 交付产物（把生成的文件呈现给用户：
+   宿主若有「展示文件」的能力就用它，例如部分平台的 `present_files`；没有就给绝对路径）
 ```
 
 ### ① 读模板

@@ -6,6 +6,23 @@ agent_created: true
 
 # 小红书拟人化采集
 
+## 宿主平台（Windows · 各 agent 平台通用）
+
+本技能**不绑定具体 agent 平台**：
+
+- `SKILL.md` 遵循 Agent Skills 规范（frontmatter 只需 `name` + `description`）
+  → WorkBuddy / CodeBuddy / Claude Code 等可直接自动发现；
+- 不认 `SKILL.md` 的平台（Codex CLI / Cursor / Gemini CLI / Windsurf / 其它读
+  `AGENTS.md` 的工具）由仓库根的 `AGENTS.md` 与 `python install.py --target <平台>`
+  生成的入口文件接管。
+
+**平台差异全部收敛在一处**：`scripts/platform_compat.py`
+（原生浏览器探测、会话目录、进程管理、技能目录发现、各宿主安装目标）。
+换平台只改它 —— 这条是 2026-09-17「修复只落在某一个副本里必然复发」的教训。
+自检：`python scripts/platform_compat.py --selfcheck`。
+
+环境：**Windows 10/11** + Python 3.10+（`py -3`）；需要**原生 Chrome**。
+
 ## 何时用
 
 - 需要以**小红书真实用户实测帖**为事实来源（旅游攻略避坑、消费决策、选品、口碑调研）
@@ -77,8 +94,13 @@ python scripts/session_daemon.py status                        # 随时确认还
 1. **让用户自己启动窗口**（不在沙箱进程树里，能一直活着）：
    ```bat
    "C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222 ^
-     --user-data-dir="%USERPROFILE%\.workbuddy\scrape_session\browser_profile" https://目标站点
+     --user-data-dir="%LOCALAPPDATA%\agent-scrape-session\browser_profile" https://目标站点
    ```
+   > **不要手写这条命令** —— 用 `platform_compat.launch_instructions(exe, port, profile)`
+   > 生成，它会自动取本机真实的 Chrome 路径、当前会话目录，并把「为什么要你自己启动」
+   > 「`.bat` 编码坑」一并写进说明。
+   > 会话目录的口径见 `platform_compat.session_dir()`：
+   > `SCRAPE_SESSION_DIR` >（旧的 `<cwd>/.workbuddy` 若已用过则沿用）> `%LOCALAPPDATA%\agent-scrape-session`。
    > 给用户双击的 `.bat` **必须纯 ASCII + CRLF**（cmd 按 GBK 解析 UTF-8 会满屏乱码，
    > `chcp 65001` 也救不了）；拿不准就直接给 Win+R 的一行命令。
 2. **cookie 快照兜底**（关键）：用 `human_act.save_cookies()` / `restore_cookies()`
@@ -197,7 +219,8 @@ def note_images(page, href):
    Chromium 无法调用系统级 Cookie 解密，即使 profile 是对的也读不出。
 
 **唯一可行解：`launch_persistent_context` 独立 profile + 扫码一次。**
-登录态永久保存在项目 `.workbuddy/` 下，后续所有采集复用，不用再扫。
+登录态永久保存在**会话目录**下（`platform_compat.session_dir()`；默认
+`%LOCALAPPDATA%\agent-scrape-session`，可用 `SCRAPE_SESSION_DIR` 指定），后续所有采集复用，不用再扫。
 
 **配套的两个坑（必看）：**
 
@@ -207,7 +230,9 @@ def note_images(page, href):
   **唯一可靠判据是「登录按钮 `.side-bar-component .login-btn` 不可见」**，
   并且建议再补一张 `page.screenshot()` 目视确认，双保险。
 - **二维码必须持续刷新** —— 每 20s 重新截图覆盖同一个 `qrcode.png`，
-  用 `present_files` 展示该文件，用户看到的就是最新一张，避免「码过期了」的往返。
+  然后**把这张图呈现给用户**（宿主若有「展示文件」的能力就用它，例如部分平台的
+  `present_files`；没有就把绝对路径告诉用户）。让用户看到的永远是最新一张，
+  避免「码过期了」的往返。
 
 ## 🚨 踩坑⑨（最高危 / 已造成真实数据损毁）：绝对禁止把自动化浏览器指向真实 profile 目录
 
@@ -216,7 +241,7 @@ def note_images(page, href):
 ```
 ❌ 禁止 launch_persistent_context(r"C:\Users\<u>\AppData\Local\Google\Chrome\User Data", ...)
 ❌ 禁止 launch_persistent_context(r"...\Edge\User Data", ...)  # 同理
-✅ 只用 <workspace>/.workbuddy/<name>_profile 这类独立 data dir
+✅ 只用独立 data dir：<会话目录>/<name>_profile（见 platform_compat.session_dir）
 ```
 
 **2026-09-09 事故实录（本人亲手造成，不可再犯）：**
@@ -254,9 +279,10 @@ Chrome 的策略是**直接丢弃解不开的 Cookie**，而不是保留。同�
 pip install playwright && playwright install chromium
 ```
 
-Windows 下用 WorkBuddy 的托管 Python：`<你的 WorkBuddy 目录>\binaries\python\envs\default\Scripts\python.exe`
-（注意不是 `...\envs\default\python.exe`，那个路径不存在。
- 实际路径请按自己机器上的 WorkBuddy 安装位置替换，不要把绝对路径提交进公开仓库。）
+Windows 下 `python` 可能不在 PATH：优先用 **`py -3`**；需要绝对路径时用
+`python -c "import sys;print(sys.executable)"` 打印当前解释器（就是 `platform_compat.python_exe()`）。
+（不要再写死某个 agent 平台的托管 Python 路径 —— 换宿主平台就失效了，
+也不要把本机绝对路径提交进公开仓库。）
 
 ### Step 1 · 登录（只需做一次，之后长期复用）
 
@@ -393,17 +419,33 @@ DOM 里 `.note-text` 的文本节点本来就是完整的，`inner_text()` 能�
 
 ## 文件约定
 
+**代码**住在技能目录里（`scripts/`），**运行产物与登录态**住在会话目录里
+（`platform_compat.session_dir()`：`SCRAPE_SESSION_DIR` >
+旧的 `<cwd>/.workbuddy`（若已用过） > `%LOCALAPPDATA%\agent-scrape-session`）。
+
 ```
-<工作区>/.workbuddy/
-├── xhs_profile/          # 持久化浏览器 profile（真实账号会话，勿删）
-├── xhs_cookies.json      # 登录 cookie 备份
+<技能目录>/scripts/
 ├── xhs_login.py          # 扫码登录
 ├── xhs_verify.py         # 登录态校验
 ├── xhs_collect.py        # 采集主脚本
+├── session_daemon.py     # 常驻会话服务
+├── human_act.py          # 拟人化操作层（各平台共用）
+└── platform_compat.py    # 宿主平台兼容层（浏览器探测/会话目录/进程/技能发现）
+
+<会话目录>/
+├── browser_profile/      # 持久化浏览器 profile（真实账号会话，勿删）
+├── cookies_<tag>.json    # cookie 快照（含会话级，见 human_act.save_cookies）
+├── xhs_profile/          # 小红书专用 profile（xhs_login 用）
+└── calibration.json      # 元素坐标标定表（四级降级的第 ③ 级）
+
+<工作目录>/
 ├── xhs_notes.jsonl       # 原始笔记
 ├── xhs_digest.md         # 去重分类摘要（Step 4 产物）
 └── xhs_collect.log       # 运行日志
 ```
+
+> ⚠️ **产物不要写进技能目录** —— 技能目录是「安装物」，写脏后会跟着同步进公开仓库
+> （2026-09-18 发现并修正）。
 
 ## 可复用性
 

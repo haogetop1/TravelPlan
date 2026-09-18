@@ -10,6 +10,17 @@ prices/
 _prices/
 _probe/
 
+# 会话目录 / 运行产物（2026-09-18 起这些名字由 platform_compat 与 human_act 使用）
+browser_profile/
+agent-scrape-session/
+agent-skills/
+cookies_*.json
+session_daemon.json
+calibration.json
+roadbook/
+_raw/
+*.log
+
 # 浏览器登录态数据库
 Cookies
 Cookies-journal

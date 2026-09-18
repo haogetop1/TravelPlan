@@ -5,7 +5,8 @@
 ## 一、小红书登录（最容易浪费时间的一环）
 
 **直接扫码，不要试图复用本机浏览器的登录态。** 完整失败链条记录在
-`~/.workbuddy/skills/xhs-humanized-collect/SKILL.md` 的「踩坑⑤」，摘要：
+兄弟技能 `xhs-humanized-collect/SKILL.md` 的「踩坑⑤」（两个技能装在同一 skills
+根目录下；找不到就用 `platform_compat.skills_roots()` 列出的候选），摘要：
 
 | 尝试 | 结果 |
 |---|---|
@@ -16,7 +17,7 @@
 | Playwright 默认参数启动 | ❌ `--use-mock-keychain` 破坏系统级 Cookie 解密 |
 
 **可行解**：`launch_persistent_context` 独立 profile + 扫码一次（实测 35 秒完成），
-登录态永久保存在项目 `.workbuddy/` 下，后续复用。
+登录态落在**会话目录**下并长期复用（`platform_compat.session_dir()`）。
 
 两个配套要点：
 - 登录判据**用「登录按钮 `.side-bar-component .login-btn` 不可见」**，不能用 `web_session` 长度
@@ -24,7 +25,8 @@
   （2026-09-11 实测：`id_token` 长度 136 + `web_session` + `a1` + `unread` 全在，
   但页面已弹扫码框、登录按钮可见）。建议再补一张 `page.screenshot()` 目视确认。
   详见 `xhs-humanized-collect/SKILL.md` 踩坑⑫。
-- 二维码**每 20s 重新截图覆盖同一个 `qrcode.png`**，再 `present_files` 展示该文件，
+- 二维码**每 20s 重新截图覆盖同一个 `qrcode.png`**，再把这张图**呈现给用户**
+  （宿主有「展示文件」能力就用，例如部分平台的 `present_files`；没有就给路径），
   用户看到的永远是最新的，避免「码过期了」的往返。
 
 ## 二、携程机票 ✅ 可抓

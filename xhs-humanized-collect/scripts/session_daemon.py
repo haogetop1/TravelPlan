@@ -29,9 +29,26 @@
 
 文件
 ----
-  会话目录（默认 <cwd>/.workbuddy，可用 SCRAPE_SESSION_DIR 覆盖）
+  会话目录（优先 `SCRAPE_SESSION_DIR`；否则 `%LOCALAPPDATA%\agent-scrape-session`；
+            旧的 `<cwd>/.workbuddy` 若已用过会继续沿用，避免掉登录态）
     ├── browser_profile/         # 持久化 profile（cookie 落盘的那部分）
     └── session_daemon.json      # {pid, port, profile, exe, exe_kind, started}
+
+⚠️ 关于「进程级常驻」的现实（2026-09-18 更正）
+------------------------------------------------
+在**受沙箱保护的执行环境**里，agent 自己拉起的浏览器活不过一条命令：
+`DETACHED_PROCESS`、`CREATE_BREAKAWAY_FROM_JOB`、`cmd` 的 `start`、计划任务
+**四种全部实测失败**（进程照杀，端口随之关闭）。
+
+真正靠得住的是两件事：
+
+1. **固定 profile** —— 带过期时间的 cookie（携程 `cticket` 等）会落盘。实测
+   杀掉浏览器再重启，ctrip 42 个 cookie 全在、登录照样有效。
+2. **cookie 快照** —— `human_act.save_cookies/restore_cookies` 把**含会话级**的
+   全部 cookie 落盘，下次 attach 注回。
+
+需要用户**手点**登录（扫码 / 短信）时，请让用户自己启动窗口：
+`platform_compat.launch_instructions()` 会按平台生成那条可直接粘贴的命令。
 """
 import argparse
 import json
@@ -44,13 +61,29 @@ import urllib.request
 
 sys.stdout.reconfigure(encoding='utf-8')
 
+# 宿主平台兼容层（与本文件同目录）：浏览器探测 / 会话目录 / 进程管理
+# 都收敛在 platform_compat，避免「换宿主平台要改几十个文件」。
+try:
+    import platform_compat as PC
+except Exception:                                        # pragma: no cover
+    PC = None
+
 DEFAULT_PORT = 9222
 
 
 # ---------------------------------------------------------------- 路径与安全
 
 def session_dir():
-    d = os.environ.get("SCRAPE_SESSION_DIR") or os.path.join(os.getcwd(), ".workbuddy")
+    """会话目录（profile / 状态文件 / cookie 快照）。
+
+    ⚠️ 不再无条件写 `<cwd>/.workbuddy`：那是 WorkBuddy 专有约定，
+    Claude Code / Codex / Cursor 等宿主不该被绑住。
+    解析优先级见 `platform_compat.session_dir`；旧的会话目录若**已被用过**
+    仍会继续沿用（否则用户会遇到「突然又要重新扫码」）。
+    """
+    d = PC.session_dir() if PC else (
+        os.environ.get("SCRAPE_SESSION_DIR")
+        or os.path.join(os.getcwd(), "agent-scrape-session"))
     os.makedirs(d, exist_ok=True)
     return d
 
@@ -68,11 +101,16 @@ def assert_profile_safe(p):
 
     App-Bound Encryption 会判定「profile 被非官方进程接管」，直接清空 cookie 库。
     2026-09-09 实测毁掉 1661 条 Cookie（含 Google 账号登录态），不可恢复。
+
+    覆盖三平台的真实 profile 形态，多一道保险 —— 这道护栏拦错一次的代价太大。
     """
     low = os.path.abspath(p).replace("\\", "/").lower()
     for bad in ("appdata/local/google/chrome/user data",
                 "appdata\\local\\google\\chrome\\user data",
-                "user data/default", "chrome/user data"):
+                "user data/default", "chrome/user data",
+                # macOS / Linux 的真实 profile（本技能不承诺支持，但护栏一并挡住）
+                "library/application support/google/chrome",
+                ".config/google-chrome", ".config/chromium"):
         if bad in low:
             raise SystemExit("拒绝启动：profile 路径指向真实浏览器目录（踩坑⑨）\n  %s\n"
                              "请改用独立的会话目录（SCRAPE_SESSION_DIR）。" % p)
@@ -98,22 +136,21 @@ def write_state(st):
 # ---------------------------------------------------------------- 进程与端口
 
 def pid_alive(pid):
-    """进程存活判断。
+    """进程存活判断（Windows 走 tasklist，委托给兼容层）。
 
     ⚠️ 别用 `text=True` 抓 tasklist —— 中文 Windows 输出是 GBK，
     `subprocess` 默认按 UTF-8 解码会在 reader 线程抛 UnicodeDecodeError，
     结果被吞成「进程没活着」→ 状态误判 STALE（2026-09-17 实测踩到）。
-    这里直接按字节匹配 ASCII 数字，不涉及任何解码。
+    兼容层里是**按字节匹配**的，不涉及任何解码。
     """
     if not pid:
         return False
+    if PC:
+        return PC.pid_alive(pid)
     try:
-        if os.name == "nt":
-            r = subprocess.run(["tasklist", "/FI", "PID eq %d" % pid, "/NH"],
-                               capture_output=True)
-            return str(pid).encode() in (r.stdout or b"")
-        os.kill(pid, 0)
-        return True
+        r = subprocess.run(["tasklist", "/FI", "PID eq %d" % pid, "/NH"],
+                           capture_output=True)
+        return str(pid).encode() in (r.stdout or b"")
     except Exception:
         return False
 
@@ -142,32 +179,29 @@ def free_port(start=DEFAULT_PORT, tries=20):
 
 
 def chromium_path():
+    if PC:
+        return PC.playwright_chromium()
     from playwright.sync_api import sync_playwright
     with sync_playwright() as p:
         return p.chromium.executable_path
 
 
-NATIVE_CHROME_CANDIDATES = [
-    r"C:\Program Files\Google\Chrome\Application\chrome.exe",
-    r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
-    os.path.join(os.environ.get("LOCALAPPDATA", ""),
-                 "Google", "Chrome", "Application", "chrome.exe"),
-]
-
-
 def native_chrome_path():
-    for p in NATIVE_CHROME_CANDIDATES:
-        if p and os.path.exists(p):
-            return p
-    return None
+    """原生 Chrome / Edge 路径（含 CHROME_PATH 覆盖），逻辑在兼容层里。"""
+    return PC.find_chrome() if PC else None
 
 
 def pick_exe(args):
     """决定用哪个浏览器内核，返回 (exe, kind)。
 
-    优先级：--exe 显式指定 > 原生 Chrome > Playwright 自带 Chromium。
+    优先级：`--exe` 显式指定 > 原生 Chrome/Edge > Playwright 自带 Chromium。
     为什么默认原生：携程/神州的指纹风控（whaleguard）会拦 Playwright 自带内核。
+    探测细节（多路径候选 + `CHROME_PATH` 覆盖）在兼容层里，只有一份实现。
     """
+    if PC:
+        return PC.resolve_browser(
+            explicit=getattr(args, "exe", "") or None,
+            prefer_native=not getattr(args, "playwright_chromium", False))
     if getattr(args, "exe", ""):
         return args.exe, "custom"
     if not getattr(args, "playwright_chromium", False):
@@ -264,17 +298,17 @@ def cmd_start(args):
             print("  （计划任务异常：%s；回退到直接启动）" % str(e)[:80])
 
     if not via:
-        cmd = [exe, "--remote-debugging-port=%d" % port, "--user-data-dir=%s" % prof,
-               "--no-first-run", "--no-default-browser-check",
-               "--disable-blink-features=AutomationControlled", "--window-size=1440,900"]
-        if args.headless:
-            cmd.append("--headless=new")
-        cmd.append("about:blank")
-        kwargs = {}
-        if os.name == "nt":
-            kwargs["creationflags"] = 0x00000008 | 0x00000200
+        if PC:
+            cmd = PC.launch_argv(exe, port, prof, headless=bool(args.headless))
+            kwargs = PC.detach_kwargs()
         else:
-            kwargs["start_new_session"] = True
+            cmd = [exe, "--remote-debugging-port=%d" % port, "--user-data-dir=%s" % prof,
+                   "--no-first-run", "--no-default-browser-check",
+                   "--disable-blink-features=AutomationControlled", "--window-size=1440,900"]
+            if args.headless:
+                cmd.append("--headless=new")
+            cmd.append("about:blank")
+            kwargs = {"creationflags": 0x00000008 | 0x00000200}
         proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL,
                                 stderr=subprocess.DEVNULL, **kwargs)
         via = "popen"
@@ -367,14 +401,14 @@ def cmd_stop(args):
         return 0
     pid = st.get("pid")
     if pid and pid_alive(pid):
+        # 结束进程树的平台差异收敛在兼容层；
+        # 中文 Windows 的 taskkill 输出是 GBK，那边是按字节处理的不做解码。
         try:
-            if os.name == "nt":
-                # 同 pid_alive：中文 Windows 的 taskkill 输出是 GBK，
-                # 别用 text=True（会抛 UnicodeDecodeError）
+            if PC:
+                PC.kill_tree(pid)
+            else:
                 subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"],
                                capture_output=True)
-            else:
-                os.kill(pid, 15)
         except Exception as e:
             print("停止失败：%s" % str(e)[:80])
     # 计划任务要一并删掉，否则会残留一个会自动拉起浏览器的任务

@@ -47,15 +47,22 @@ import urllib.request
 
 sys.stdout.reconfigure(encoding='utf-8')
 
+# ── 宿主平台兼容层 ────────────────────────────────────────────────
+# 浏览器探测 / 会话目录 / 进程管理 / 技能目录发现 全部收敛在 platform_compat，
+# 目的有两个：① 不再绑死 WorkBuddy 的 `.workbuddy` 约定，让本技能在
+# Claude Code / Codex / Cursor / Gemini 等宿主上同样能跑；
+# ② 换平台只改一处，而不是散落的几十个文件（2026-09-17 的教训：
+# 「修复只落在某一个副本里」必然复发）。
+# 它与本文件同目录，正常 import 即可；万一被单独拷走，退化成内置默认值而不是崩掉。
+try:
+    import platform_compat as PC
+except Exception:                                        # pragma: no cover
+    PC = None
+
 DEFAULT_CDP = os.environ.get("XHS_CDP") or "http://127.0.0.1:9222"
 
-# 原生 Chrome（携程/神州的指纹风控会拦 Playwright 自带内核）
-CHROME_CANDIDATES = [
-    r"C:\Program Files\Google\Chrome\Application\chrome.exe",
-    r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
-    os.path.join(os.environ.get("LOCALAPPDATA", ""),
-                 "Google", "Chrome", "Application", "chrome.exe"),
-]
+# 兼容层缺失时的兜底会话目录名（正常情况下由 PC.session_dir 决定）
+_FALLBACK_SESSION_LEAF = "agent-scrape-session"
 
 # 验证码/风控特征。刻意收窄：像裸 "verify" 这种词在正常页面里到处都是，
 # 会把正常页面误判成验证码。只留指向性明确的。
@@ -83,7 +90,19 @@ class CaptchaHit(Exception):
 # ------------------------------------------------------------------ 会话目录
 
 def session_dir(d=None):
-    d = d or os.environ.get("SCRAPE_SESSION_DIR") or os.path.join(os.getcwd(), ".workbuddy")
+    """会话目录：profile / 标定表 / cookie 快照都放这里。
+
+    解析优先级（见 `platform_compat.session_dir`）：
+      显式参数 > `SCRAPE_SESSION_DIR` > 旧的 `<cwd>/.workbuddy`（**仅当已用过**）
+      > `%LOCALAPPDATA%\\agent-scrape-session`
+
+    ⚠️ 不再无条件写进 `.workbuddy` —— 那是 WorkBuddy 专有约定，
+    Claude Code / Codex / Cursor 等宿主不该被它绑住。
+    但**旧的会话目录若已经用过就继续沿用**，否则用户会遇到「突然又要重新扫码」。
+    """
+    d = PC.session_dir(d) if PC else (
+        d or os.environ.get("SCRAPE_SESSION_DIR")
+        or os.path.join(os.getcwd(), _FALLBACK_SESSION_LEAF))
     os.makedirs(d, exist_ok=True)
     return d
 
@@ -218,10 +237,12 @@ def cdp_ok(port, timeout=2.0):
 
 
 def native_chrome():
-    for p in CHROME_CANDIDATES:
-        if p and os.path.exists(p):
-            return p
-    return None
+    """原生 Chrome / Edge 路径。
+
+    原生内核是硬要求：携程 / 神州的指纹风控（whaleguard）会拦 Playwright
+    自带 Chromium。探测逻辑（含 `CHROME_PATH` 环境变量覆盖）在兼容层里。
+    """
+    return PC.find_chrome() if PC else None
 
 
 def session_profile():
@@ -242,26 +263,30 @@ def kill_stray(profile):
 
 
 def launch_chrome(port=9222, profile=None, headless=False):
+    """拉起一个带调试端口的原生浏览器（**由 agent 启动的临时会话**）。
+
+    ⚠️ 需要用户亲手点登录时，别用这个 —— 沙箱会在命令结束时收掉它，
+    用户根本来不及点。那种场景请用 `platform_compat.launch_instructions()`
+    把命令交给用户自己执行。
+    """
     exe = native_chrome()
     if not exe:
-        raise SystemExit("找不到原生 Chrome（携程/神州 必须用原生内核）")
+        raise SystemExit(
+            "找不到原生 Chrome / Edge。\n"
+            "  携程 / 神州 必须用原生内核（Playwright 自带会被 whaleguard 拦）。\n"
+            "  装一个 Chrome，或设环境变量 CHROME_PATH 指向你的浏览器。")
     profile = profile or session_profile()
     os.makedirs(profile, exist_ok=True)
-    cmd = [exe, "--remote-debugging-port=%d" % port,
-           "--user-data-dir=%s" % profile,
-           "--no-first-run", "--no-default-browser-check",
-           "--disable-blink-features=AutomationControlled",
-           "--window-size=1440,900"]
-    if headless:
-        cmd.append("--headless=new")
-    cmd.append("about:blank")
+    if not PC:
+        raise SystemExit("缺少 platform_compat.py（应与 human_act.py 同目录）")
+    cmd = PC.launch_argv(exe, port, profile, headless=headless)
     proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                            creationflags=0x00000008 | 0x00000200)
+                            **PC.detach_kwargs())
     for _ in range(30):
         time.sleep(0.7)
         if cdp_ok(port):
             return proc, port
-    raise SystemExit("Chrome 已拉起（pid=%d）但 22s 内没准备好 CDP 端点" % proc.pid)
+    raise SystemExit("Chrome 已拉起（pid=%d）但 21s 内没准备好 CDP 端点" % proc.pid)
 
 
 def ensure_session(cdp=None, port=9222, auto_start=True):
@@ -762,6 +787,31 @@ def dump(page, out_dir, name, netlog=None, extra=None):
 
 # ------------------------------------------------------------------ 自检
 
+def _probe_session_delegation():
+    """确认 `session_dir()` 真的在走兼容层的解析规则。
+
+    刻意用**行为断言**而不是「源码里有没有某个字符串」—— 后者会搜到检查项
+    自身（2026-09-18 被这个自我指涉坑过一次，报了个假 FAIL）。
+    """
+    import tempfile
+    old = os.environ.get("SCRAPE_SESSION_DIR")
+    t = tempfile.mkdtemp(prefix="ses_chk_")
+    try:
+        os.environ["SCRAPE_SESSION_DIR"] = t
+        got = session_dir()
+        want = PC.session_dir(t) if PC else t
+        return (os.path.normcase(os.path.abspath(got))
+                == os.path.normcase(os.path.abspath(want))
+                and not got.rstrip("\\/").endswith(".workbuddy"))
+    except Exception:
+        return False
+    finally:
+        if old is None:
+            os.environ.pop("SCRAPE_SESSION_DIR", None)
+        else:
+            os.environ["SCRAPE_SESSION_DIR"] = old
+
+
 def selfcheck():
     """副本漂移自检：确认四级降级与安全约束都在。"""
     src = open(os.path.abspath(__file__), encoding="utf-8").read()
@@ -788,6 +838,14 @@ def selfcheck():
          "def ensure_session(" in src and "def kill_stray(" in src and "auto_start" in src),
         ("绝不关浏览器（无 browser.close 调用）", real_close is None),
         ("只关标签页", "self.page.close()" in src),
+        # ── 宿主平台中立性（2026-09-18：让它能在各 agent 平台上跑）──
+        ("兼容层已加载", PC is not None),
+        ("浏览器探测走兼容层（含 CHROME_PATH 覆盖）",
+         PC is not None and native_chrome() == PC.find_chrome()),
+        ("会话目录委托给兼容层（不再无条件写 .workbuddy）",
+         _probe_session_delegation()),
+        ("启动命令由兼容层生成（Windows 走 Win+R 提示）",
+         "PC.launch_argv(" in src and "PC.detach_kwargs()" in src),
     ]
     bad = [n for n, ok in checks if not ok]
     for n, ok in checks:
@@ -805,10 +863,11 @@ def selfcheck():
     print()
     if bad:
         print("SELFCHECK_FAIL %d 项：%s" % (len(bad), ", ".join(bad)))
-        print("  提示：若本地技能目录是新版而当前跑的是旧副本，请从 "
-              "~/.workbuddy/skills/xhs-humanized-collect/scripts/ 重新复制。")
+        print("  提示：若跑的是旧副本，请重新复制。两个技能必须装在**同一个** skills 根目录下；")
+        print("        脚本会在多个候选目录里自动找兄弟技能（见 platform_compat.skills_roots）。")
+        print("        本机会话目录：%s" % session_dir())
         return 1
-    print("SELFCHECK_PASS（四级降级 + 三件套 + 金额校验 + 不关浏览器 全部就位）")
+    print("SELFCHECK_PASS（四级降级 + 三件套 + 金额校验 + 不关浏览器 + 平台中立 全部就位）")
     return 0
 
 
