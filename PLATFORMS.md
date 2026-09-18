@@ -84,8 +84,8 @@ py -3 install.py --list
 
 ---
 
-## 五、一个待办（不是代码问题）
+## 五、许可证
 
-仓库目前**没有 `LICENSE` 文件**，而技能的 frontmatter 也没写 `license` 字段。
-公开仓库不带许可证，别人在法务上无法判断能否使用 —— 建议补一个（例如 MIT），
-但这属于你的决定，我没有替你选。
+仓库的 [`LICENSE`](LICENSE) 是 **MIT**（© 2026 haogetop1）。
+两个技能的 `SKILL.md` frontmatter 也已补上 `license: MIT` —— 与仓库保持一致，
+同时满足 Agent Skills 规范里的可选字段。

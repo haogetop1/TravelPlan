@@ -2,6 +2,7 @@
 name: xhs-humanized-collect
 description: 小红书拟人化采集。用 Playwright 持久化登录态 + 真实有头浏览器 + 随机拟人节奏 + 限速，绕过风控批量采集笔记正文（标题/作者/点赞/日期/正文）。适用于需要以小红书实测帖为事实来源做攻略、选品、舆情、调研的场景。触发词：小红书采集、小红书搜索、xhs 采集、小红书避坑帖、登小红书抓数据、小红书攻略素材。
 agent_created: true
+license: MIT
 ---
 
 # 小红书拟人化采集
@@ -239,8 +240,10 @@ def note_images(page, href):
 **禁令（无条件遵守）：**
 
 ```
-❌ 禁止 launch_persistent_context(r"C:\Users\<u>\AppData\Local\Google\Chrome\User Data", ...)
+❌ 禁止 launch_persistent_context(r"%USERPROFILE%\AppData\Local\Google\Chrome\User Data", ...)
 ❌ 禁止 launch_persistent_context(r"...\Edge\User Data", ...)  # 同理
+   （示例用 %USERPROFILE% 占位，别在文档/代码里写「盘符:\Users\…」的字面量
+    —— 既会被敏感扫描误报，也容易被顺手填成真实用户名提交上去）
 ✅ 只用独立 data dir：<会话目录>/<name>_profile（见 platform_compat.session_dir）
 ```
 

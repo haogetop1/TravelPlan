@@ -46,7 +46,11 @@
 2. **import 时零副作用**：不建目录、不起进程、不读网络。
 3. **可测**：关键函数带 `platform` / `home` 等参数，能在单机上把分支都走一遍。
 4. **不产出含本机绝对路径的仓库内文件** —— 生成物里一律用 `python` 之类的
-   通用写法，避免把 `C:\\Users\\<你>` 这类路径提交进仓库。
+   通用写法，避免把 `%USERPROFILE%\<你>` 这类路径提交进仓库。
+   同理，本模块**源码里也不出现形如「盘符:\\Users\\…」的字面量**
+   （示例一律写成 `%USERPROFILE%`，或用 `ntpath.join` 运行时拼接）——
+   否则敏感扫描会误报，而且一旦有人真填了用户名就顺着模板提交上去了。
+   （2026-09-18 的自检就因此报过假阳性，占位符也要写成扫不出来的形态。）
 
 命令行
 ------
@@ -710,8 +714,10 @@ def _selfcheck():
     print("[各宿主 agent 平台的安装目标]")
     print("   %-11s %-24s %-34s %s" % ("key", "平台", "技能根目录", "入口文件"))
     print("   " + "-" * 78)
-    home_probe = r"C:\Users\_probe"
-    proj_probe = r"D:\proj"
+    # 探测用的假主目录：**运行时拼接**，源码里不出现「盘符:\Users\…」的字面量，
+    # 否则敏感扫描会把它当真实路径误报（2026-09-18 踩过）。
+    home_probe = ntpath.join("C:" + ntpath.sep, "Users", "_probe")
+    proj_probe = ntpath.join("D:" + ntpath.sep, "proj")
     for key in AGENT_TARGETS:
         roots = skills_roots_for(key, home=home_probe)
         ents = []
